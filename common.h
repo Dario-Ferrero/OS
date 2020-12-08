@@ -15,6 +15,9 @@
 					  errno,			\
 					  strerror(errno));}
 
+#define PRINT_INT(n) fprintf(stderr, "%s:%i: %s = %i\n", __FILE__, __LINE__, #n, n)
+#define PRINT_LONG_I(n) fprintf(stderr, "%s:%i: %s = %li\n", __FILE__, __LINE__, #n, n)
+
 #define SO_WIDTH  20
 #define SO_HEIGHT 10
 
