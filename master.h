@@ -16,7 +16,8 @@ void handle_signal(int signum);
 void read_params();
 
 /*
- * Inizializza la city_grid in memoria condivisa e ne ritorna l'id
+ * Inizializza le celle della city_grid in memoria condivisa e ne ritorna l'id.
+ * SO_HOLES di queste sono marcate come inaccessibili.
  */
 int init_city_grid();
 
@@ -24,6 +25,12 @@ int init_city_grid();
  * Ritorna TRUE se almeno una cella adiacente a city_grid[pos] è una HOLE_CELL
  */
 int check_adj_cells(long pos);
+
+/*
+ * Assegna SO_SOURCES celle in city_grid il ruolo di sorgente
+ * e ne salva le posizioni nell'array puntato da sources
+ */
+void assign_sources(int **sources);
 
 /*
  * Stampa a terminale, per ogni cella di city_grid, il valore dei suoi campi

@@ -12,8 +12,7 @@ Cell *city_grid;
 int main(int argc, char *argv[])
 {
     pid_t *taxis, *sources, child_pid;
-    long i;
-    int status, shm_id;
+    int i, status, shm_id, *src_pos;
 
     fprintf(stderr, "Inizio lettura parametri... ");
     read_params();
@@ -23,12 +22,15 @@ int main(int argc, char *argv[])
     shm_id = init_city_grid();
     fprintf(stderr, "Griglia inizializzata\n");
 
-    /* print_grid_values(); */
+    print_grid();
+
+    assign_sources(&src_pos);
 
     print_grid();
 
+    /* print_grid_values(); */
 
-
+    free(src_pos);
     shmdt(city_grid);
 }
 
@@ -154,7 +156,13 @@ void print_grid()
     for (y = 0; y < SO_HEIGHT; y++) {
         fprintf(stderr, " %d | ", y % 10);
         for (x = 0; x < SO_WIDTH; x++) {
-            fprintf(stderr, "%c ", (city_grid[INDEX(x, y)].flags & HOLE_CELL) ? 'H' : (char)96); /* oppure '*' */
+            if (IS_HOLE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "H ");
+            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "S ");
+            } else {
+                fprintf(stderr, "%c ", (char)96);
+            }
         }
         fprintf(stderr, "|\n");
     }
@@ -175,10 +183,27 @@ void print_grid_values()
         fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
         fprintf(stderr, "city_grid[%3ld].capacity = %ld\n", i, city_grid[i].capacity);
         fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
-        fprintf(stderr, "city_grid[%3ld].cross_time = %u\n\n", i, city_grid[i].flags);
+        fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
     }
 }
 
+
+void assign_sources(int **sources)
+{
+    int cnt, i, pos;
+
+    *sources = (int *)calloc(SO_SOURCES, sizeof(*sources));
+    cnt = SO_SOURCES;
+    i = 0;
+    do {
+        pos = RAND_RNG(0, GRID_SIZE-1);
+        if (!IS_HOLE(city_grid[pos]) && !IS_SOURCE(city_grid[pos])) {
+            city_grid[pos].flags |= SRC_CELL;
+            (*sources)[i++] = pos;
+            cnt--;
+        }
+    } while (cnt > 0);
+}
 
 void handle_signal(int signum)
 {

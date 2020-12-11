@@ -47,7 +47,8 @@
 #define SRC_CELL  0x01
 #define HOLE_CELL 0x02
 
-#define IS_HOLE(cell) (cell.flags & HOLE_CELL)
+#define IS_HOLE(cell)   (cell.flags & HOLE_CELL)
+#define IS_SOURCE(cell) (cell.flags & SRC_CELL)
 
 typedef struct _Cell {
     long cross_time;
