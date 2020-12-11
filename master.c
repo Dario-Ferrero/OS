@@ -27,6 +27,8 @@ int main(int argc, char *argv[])
 
     print_grid();
 
+
+
     shmdt(city_grid);
 }
 
@@ -67,9 +69,6 @@ void read_params()
 }
 
 
-/*
- * TODO: riesci ad inizializzare gli HOLE prima delle celle in sè ?
- */
 int init_city_grid()
 {
     int i, pos, shm_id;
@@ -155,7 +154,7 @@ void print_grid()
     for (y = 0; y < SO_HEIGHT; y++) {
         fprintf(stderr, " %d | ", y % 10);
         for (x = 0; x < SO_WIDTH; x++) {
-            fprintf(stderr, "%s ", (city_grid[INDEX(x, y)].flags & HOLE_CELL) ? "H" : "*");
+            fprintf(stderr, "%c ", (city_grid[INDEX(x, y)].flags & HOLE_CELL) ? 'H' : (char)96); /* oppure '*' */
         }
         fprintf(stderr, "|\n");
     }

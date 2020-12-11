@@ -1,7 +1,7 @@
 #ifndef __MASTER_H__
 #define __MASTER_H__
 
-#define PARAMS_FILE "params.conf"
+#define PARAMS_FILE "dense.conf"
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10
 
