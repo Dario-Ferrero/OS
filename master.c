@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 
     print_grid();
 
+    fprintf(stderr, "Assegnamento celle sorgente...\n");
     assign_sources(&src_pos);
 
     print_grid();
@@ -68,6 +69,35 @@ void read_params()
 
     free(params);
     fclose(in);
+
+    check_params();
+}
+
+void check_params()
+{
+    if (SO_WIDTH <= 0 || SO_HEIGHT <= 0) {
+        fprintf(stderr, "Valori di SO_WIDTH e SO_HEIGHT troppo bassi!\n");
+        exit(EXIT_FAILURE);
+    } else if (SO_SOURCES + SO_HOLES > GRID_SIZE) {
+        fprintf(stderr, "Troppi SO_SOURCES e SO_HOLES per la dimensione della griglia!\n");
+        exit(EXIT_FAILURE);
+    } else if (SO_TOP_CELLS > GRID_SIZE - SO_HOLES) {
+        fprintf(stderr, "Troppe SO_TOP_CELLS rispetto alle celle accessibili!\n");
+        exit(EXIT_FAILURE);
+    } else if (SO_TIMENSEC_MIN > SO_TIMENSEC_MAX) {
+        fprintf(stderr, "Valori SO_TIMENSEC incoerenti! (MIN > MAX)\n");
+        exit(EXIT_FAILURE);
+    } else if (SO_CAP_MIN > SO_CAP_MAX) {
+        fprintf(stderr, "Valori SO_CAP incoerenti! (MIN > MAX)\n");
+        exit(EXIT_FAILURE);
+    } else if (SO_TAXI > (GRID_SIZE - SO_HOLES) * SO_CAP_MIN) {
+        fprintf(stderr, "I SO_TAXI potrebbero essere troppi per questa configurazione.\n");
+    } else if (GRID_SIZE / SO_HOLES < 9) {
+        fprintf(stderr, "Troppi SO_HOLES rispetto alle dimensioni della griglia.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        fprintf(stderr, "Parametri controllati, validi per la simulazione.\n");
+    }
 }
 
 

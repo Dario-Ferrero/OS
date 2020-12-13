@@ -16,6 +16,12 @@ void handle_signal(int signum);
 void read_params();
 
 /*
+ * Controlla i valori dei parametri SO e termina
+ * nel caso ve ne siano di non validi
+ */
+void check_params();
+
+/*
  * Inizializza le celle della city_grid in memoria condivisa e ne ritorna l'id.
  * SO_HOLES di queste sono marcate come inaccessibili.
  */
