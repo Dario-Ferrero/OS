@@ -35,6 +35,8 @@
 #define SO_HEIGHT 10
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
+#define GET_X(pos) (pos % SO_WIDTH)
+#define GET_Y(pos) ((pos - GET_X(pos)) / SO_WIDTH)
 
 #define TRUE  1
 #define FALSE 0

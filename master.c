@@ -18,6 +18,10 @@ int main(int argc, char *argv[])
     read_params();
     fprintf(stderr, "Parametri letti.\n");
 
+    fprintf(stderr, "Controllo parametri... ");
+    check_params();
+    fprintf(stderr, "Parametri validi.\n");
+
     fprintf(stderr, "Inizializzazione griglia... \n\n");
     shm_id = init_city_grid();
     fprintf(stderr, "Griglia inizializzata\n");
@@ -69,9 +73,8 @@ void read_params()
 
     free(params);
     fclose(in);
-
-    check_params();
 }
+
 
 void check_params()
 {
