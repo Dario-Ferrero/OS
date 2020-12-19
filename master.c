@@ -8,6 +8,8 @@
  * e ridurre le signature delle funzioni
  */
 Cell *city_grid;
+int sem_id;
+struct sembuf sop;
 
 int main(int argc, char *argv[])
 {
@@ -35,8 +37,19 @@ int main(int argc, char *argv[])
 
     /* print_grid_values(); */
 
+    if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
+        TEST_ERROR;
+        fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
+        exit(EXIT_FAILURE);
+    }
+    for (i = 0; i < GRID_SIZE; i++) {
+        semctl(sem_id, i, SETVAL, city_grid[i].capacity);
+    }
+    semctl(sem_id, SEM_SYNC, SETVAL, 1);
+
     free(src_pos);
     shmdt(city_grid);
+    semctl(sem_id, 0, IPC_RMID);
 }
 
 
@@ -112,7 +125,7 @@ int init_city_grid()
                   GRID_SIZE * sizeof(*city_grid),
                   IPC_CREAT | IPC_EXCL | 0666)) == -1) {
         TEST_ERROR;
-        fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con id %d\n", getpid());
+        fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
     }
 
@@ -214,7 +227,7 @@ void print_grid_values()
 
     for (i = 0; i < GRID_SIZE; i++) {
         fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
-        fprintf(stderr, "city_grid[%3ld].capacity = %ld\n", i, city_grid[i].capacity);
+        fprintf(stderr, "city_grid[%3ld].capacity = %d\n", i, city_grid[i].capacity);
         fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
         fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
     }
@@ -237,6 +250,7 @@ void assign_sources(int **sources)
         }
     } while (cnt > 0);
 }
+
 
 void handle_signal(int signum)
 {
