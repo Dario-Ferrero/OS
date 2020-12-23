@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -64,9 +65,9 @@ typedef struct _Cell {
  * Valori in [0, GRID_SIZE-1] usati per l'accesso alle celle
  */
 
-#define NSEMS (GRID_SIZE + 1)
-#define SEM_SYNC (GRID_SIZE)
-#define INIT_SEM_SYNC 1 	/* wait for zero */
+#define NSEMS  	  (GRID_SIZE + 2)
+#define SEM_START  GRID_SIZE
+#define SEM_KIDS  (GRID_SIZE + 1)
 
 
 

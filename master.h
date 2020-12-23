@@ -5,6 +5,9 @@
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10
 
+#define SRC_FILE "./sorgente"
+#define TAXI_FILE "./taxi"
+
 /*
  * Signal handler per il processo
  */

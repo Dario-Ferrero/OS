@@ -9,12 +9,16 @@
  */
 Cell *city_grid;
 int sem_id;
-struct sembuf sop;
+struct sembuf sops;
 
 int main(int argc, char *argv[])
 {
-    pid_t *taxis, *sources, child_pid;
-    int i, status, shm_id, *src_pos;
+    pid_t *taxis, *srcs, child_pid;
+    int i, status, shm_id, *src_pos, val;
+    char *src_args[3],
+         *taxi_args[3],
+         args_buf[10];
+
 
     fprintf(stderr, "Inizio lettura parametri... ");
     read_params();
@@ -30,13 +34,15 @@ int main(int argc, char *argv[])
 
     print_grid();
 
-    fprintf(stderr, "Assegnamento celle sorgente...\n");
+    fprintf(stderr, "Assegnamento celle sorgente...");
     assign_sources(&src_pos);
+    fprintf(stderr, "Celle sorgente assegnate.\n");
 
     print_grid();
 
     /* print_grid_values(); */
 
+#if 1
     if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
@@ -45,9 +51,54 @@ int main(int argc, char *argv[])
     for (i = 0; i < GRID_SIZE; i++) {
         semctl(sem_id, i, SETVAL, city_grid[i].capacity);
     }
-    semctl(sem_id, SEM_SYNC, SETVAL, 1);
+    semctl(sem_id, SEM_START, SETVAL, 1);
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
+    /*
+    for (i = 0; i < NSEMS; i++) {
+        val = semctl(sem_id, i, GETVAL);
+        fprintf(stderr, "Semaphore[%3d] = %d\n", i, val);
+    }
+    */
+#endif
+
+#if 1
+
+    fprintf(stderr, "Creazione processi sorgente...\n");
+
+    srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
+
+    src_args[0] = SRC_FILE;
+    src_args[2] = NULL;
+    for (i = 0; i < SO_SOURCES; i++) {
+        switch (child_pid = fork()) {
+        case -1:
+            fprintf(stderr, "Fork fallita.\n");
+            TEST_ERROR;
+            raise(SIGINT); /* Oppure scrivere funzione terminate() */
+        case 0:
+            sprintf(args_buf, "%d", src_pos[i]);
+            src_args[1] = args_buf;
+            execvp(SRC_FILE, src_args);
+            exit(EXIT_FAILURE);
+            break;
+        default:
+            srcs[i] = child_pid;
+        }
+    }
+
+    sops.sem_num = SEM_KIDS;
+    sops.sem_op = -SO_SOURCES;
+    sops.sem_flg = 0;
+    semop(sem_id, &sops, 1);
+
+    while ((child_pid = wait(&status)) != -1) {
+        fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
+    }
+
+#endif
 
     free(src_pos);
+    free(srcs);
     shmdt(city_grid);
     semctl(sem_id, 0, IPC_RMID);
 }
@@ -255,6 +306,7 @@ void assign_sources(int **sources)
 void handle_signal(int signum)
 {
     switch (signum) {
+    case SIGTERM:
     case SIGINT:
         break;
     
