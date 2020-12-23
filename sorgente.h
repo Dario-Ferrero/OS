@@ -6,4 +6,9 @@
  */
 void handle_signal(int signum);
 
+/*
+ * Terminazione forzata : rilascia le risorse
+ */
+void terminate();
+
 #endif

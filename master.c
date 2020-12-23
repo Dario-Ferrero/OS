@@ -11,9 +11,11 @@ Cell *city_grid;
 int sem_id;
 struct sembuf sops;
 
+pid_t *taxis, *srcs;
+
 int main(int argc, char *argv[])
 {
-    pid_t *taxis, *srcs, child_pid;
+    pid_t child_pid;
     int i, status, shm_id, *src_pos, val;
     char *src_args[3],
          *taxi_args[3],
@@ -74,7 +76,7 @@ int main(int argc, char *argv[])
         case -1:
             fprintf(stderr, "Fork fallita.\n");
             TEST_ERROR;
-            raise(SIGINT); /* Oppure scrivere funzione terminate() */
+            terminate();
         case 0:
             sprintf(args_buf, "%d", src_pos[i]);
             src_args[1] = args_buf;
@@ -99,8 +101,7 @@ int main(int argc, char *argv[])
 
     free(src_pos);
     free(srcs);
-    shmdt(city_grid);
-    semctl(sem_id, 0, IPC_RMID);
+    terminate();
 }
 
 
@@ -308,6 +309,7 @@ void handle_signal(int signum)
     switch (signum) {
     case SIGTERM:
     case SIGINT:
+        terminate();
         break;
     
     case SIGALRM:
@@ -316,4 +318,20 @@ void handle_signal(int signum)
     default:
         break;
     }
+}
+
+
+void terminate()
+{
+    int i;
+
+    /*
+     * TODO:
+     * - uccidere sorgenti
+     * - uccidere taxi
+     */
+
+    shmdt(city_grid);
+    semctl(sem_id, 0, IPC_RMID);
+    exit(EXIT_FAILURE);
 }

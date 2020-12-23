@@ -8,10 +8,6 @@
 #define SRC_FILE "./sorgente"
 #define TAXI_FILE "./taxi"
 
-/*
- * Signal handler per il processo
- */
-void handle_signal(int signum);
 
 /*
  * Legge il file specificato ed inizializza le variabili globali SO
@@ -50,6 +46,16 @@ void print_grid_values();
  * Stampa a terminale la city_grid
  */
 void print_grid();
+
+/*
+ * Signal handler per il processo
+ */
+void handle_signal(int signum);
+
+/*
+ * Terminazione forzata : rilascia le risorse
+ */
+void terminate();
 
 
 /*

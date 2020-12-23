@@ -100,3 +100,9 @@ void handle_signal(int signum)
         break;
     }
 }
+
+
+void terminate()
+{
+    exit(EXIT_FAILURE);
+}
