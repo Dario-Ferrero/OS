@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Inizializzazione griglia... \n\n");
     shm_id = init_city_grid();
-    fprintf(stderr, "griglia inizializzata\n");
+    fprintf(stderr, "Griglia inizializzata\n");
 
     print_grid();
 
@@ -84,18 +84,15 @@ int main(int argc, char *argv[])
 
     /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
 
-    sops.sem_num = SEM_KIDS;
-    sops.sem_op = -SO_SOURCES;
-    sops.sem_flg = 0;
-    semop(sem_id, &sops, 1);
+    SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
+    TEST_ERROR;
 
     fprintf(stderr, "Master sbloccato, le sorgenti si sono inizializzate.\n");
 
     /* print_grid_values(); */
 
-    sops.sem_num = SEM_START;
-    sops.sem_op = -1;
-    semop(sem_id, &sops, 1);
+    SEMOP(sem_id, SEM_START, -1, 0);
+    TEST_ERROR;
 
     while ((child_pid = wait(&status)) != -1) {
         fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));

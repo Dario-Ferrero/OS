@@ -69,6 +69,10 @@ typedef struct _Cell {
 #define NSEMS  	  (GRID_SIZE + 2)
 #define SEM_START  GRID_SIZE
 #define SEM_KIDS  (GRID_SIZE + 1)
+#define SEMOP(id, num, op, flg)		sops.sem_num = num;		\
+									sops.sem_op = op;		\
+									sops.sem_flg = flg;		\
+									semop(id, &sops, 1);	
 
 
 /*

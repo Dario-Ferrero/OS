@@ -67,15 +67,11 @@ int main(int argc, char *argv[])
      * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
      */
 
-    sops.sem_num = SEM_KIDS;
-    sops.sem_op = 1;
-    sops.sem_flg = 0;
-    semop(sem_id, &sops, 1);
+    SEMOP(sem_id, SEM_KIDS, 1, 0);
+    TEST_ERROR;
 
-
-    sops.sem_num = SEM_START;
-    sops.sem_op = 0;
-    semop(sem_id, &sops, 1);
+    SEMOP(sem_id, SEM_START, 0, 0);
+    TEST_ERROR;
 
     terminate();
 
