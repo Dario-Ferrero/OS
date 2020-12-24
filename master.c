@@ -8,7 +8,7 @@
  * e ridurre le signature delle funzioni
  */
 Cell *city_grid;
-int sem_id;
+int sem_id, shm_id;
 struct sembuf sops;
 
 pid_t *taxis, *srcs;
@@ -16,59 +16,53 @@ pid_t *taxis, *srcs;
 int main(int argc, char *argv[])
 {
     pid_t child_pid;
-    int i, status, shm_id, *src_pos, val;
+    int i, status, *src_pos;
     char *src_args[3],
          *taxi_args[3],
          args_buf[10];
 
+    struct sigaction sa;
 
     fprintf(stderr, "Inizio lettura parametri... ");
     read_params();
-    fprintf(stderr, "Parametri letti.\n");
+    fprintf(stderr, "parametri letti.\n");
 
     fprintf(stderr, "Controllo parametri... ");
     check_params();
-    fprintf(stderr, "Parametri validi.\n");
+    fprintf(stderr, "parametri validi.\n");
 
     fprintf(stderr, "Inizializzazione griglia... \n\n");
     shm_id = init_city_grid();
-    fprintf(stderr, "Griglia inizializzata\n");
+    fprintf(stderr, "griglia inizializzata\n");
 
     print_grid();
 
-    fprintf(stderr, "Assegnamento celle sorgente...");
+    fprintf(stderr, "Assegnamento celle sorgente... ");
     assign_sources(&src_pos);
-    fprintf(stderr, "Celle sorgente assegnate.\n");
+    fprintf(stderr, "celle sorgente assegnate.\n");
 
     print_grid();
 
-    /* print_grid_values(); */
-
-#if 1
     if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
     }
     for (i = 0; i < GRID_SIZE; i++) {
-        semctl(sem_id, i, SETVAL, city_grid[i].capacity);
+        semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
     }
     semctl(sem_id, SEM_START, SETVAL, 1);
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
-    /*
-    for (i = 0; i < NSEMS; i++) {
-        val = semctl(sem_id, i, GETVAL);
-        fprintf(stderr, "Semaphore[%3d] = %d\n", i, val);
-    }
-    */
-#endif
 
-#if 1
+
+    sa.sa_handler = handle_signal;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+
 
     fprintf(stderr, "Creazione processi sorgente...\n");
-
     srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
-
     src_args[0] = SRC_FILE;
     src_args[2] = NULL;
     for (i = 0; i < SO_SOURCES; i++) {
@@ -88,16 +82,24 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
+
     sops.sem_num = SEM_KIDS;
     sops.sem_op = -SO_SOURCES;
     sops.sem_flg = 0;
     semop(sem_id, &sops, 1);
 
+    fprintf(stderr, "Master sbloccato, le sorgenti si sono inizializzate.\n");
+
+    /* print_grid_values(); */
+
+    sops.sem_num = SEM_START;
+    sops.sem_op = -1;
+    semop(sem_id, &sops, 1);
+
     while ((child_pid = wait(&status)) != -1) {
         fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
     }
-
-#endif
 
     free(src_pos);
     free(srcs);
@@ -163,30 +165,26 @@ void check_params()
     } else if (GRID_SIZE / SO_HOLES < 9) {
         fprintf(stderr, "Troppi SO_HOLES rispetto alle dimensioni della griglia.\n");
         exit(EXIT_FAILURE);
-    } else {
-        fprintf(stderr, "Parametri controllati, validi per la simulazione.\n");
     }
 }
 
 
 int init_city_grid()
 {
-    int i, pos, shm_id;
+    int i, pos;
 
     if ((shm_id = shmget(getpid(),
                   GRID_SIZE * sizeof(*city_grid),
-                  IPC_CREAT | IPC_EXCL | 0666)) == -1) {
+                  IPC_CREAT | IPC_EXCL | 0600)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
     }
 
-    city_grid = shmat(shm_id, NULL, 0);
+    city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
-    shmctl(shm_id, IPC_RMID, NULL);
 
     fprintf(stderr, "Assegnamento dei %d HOLE... ", SO_HOLES);
-
     srand(getpid());
     i = SO_HOLES;
     while (i > 0) {
@@ -199,18 +197,15 @@ int init_city_grid()
     fprintf(stderr, "assegnati (%d rimanenti).\n", i);
 
     fprintf(stderr, "Inizializzazione delle celle... ");
-    
     for (i = 0; i < GRID_SIZE; i++) {
         if (!IS_HOLE(city_grid[i])) {
             city_grid[i].cross_time = (long)RAND_RNG(SO_TIMENSEC_MIN, SO_TIMENSEC_MAX);
-            city_grid[i].capacity = (long)RAND_RNG(SO_CAP_MIN, SO_CAP_MAX);
+            city_grid[i].msq_id = 0;
             city_grid[i].cross_n = 0;
             city_grid[i].flags = 0;
         }
     }
-    fprintf(stderr, "Celle inizializzate.\n\n");
-
-    return shm_id;
+    fprintf(stderr, "celle inizializzate.\n\n");
 }
 
 
@@ -279,7 +274,7 @@ void print_grid_values()
 
     for (i = 0; i < GRID_SIZE; i++) {
         fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
-        fprintf(stderr, "city_grid[%3ld].capacity = %d\n", i, city_grid[i].capacity);
+        fprintf(stderr, "city_grid[%3ld].msq_id = %d\n", i, city_grid[i].msq_id);
         fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
         fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
     }
@@ -332,6 +327,7 @@ void terminate()
      */
 
     shmdt(city_grid);
+    shmctl(shm_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
     exit(EXIT_FAILURE);
 }

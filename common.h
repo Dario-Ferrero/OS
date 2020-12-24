@@ -12,11 +12,12 @@
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
 
 
 typedef struct _Cell {
     long cross_time;
-    u_int8_t capacity;
+	int msq_id;
     sig_atomic_t cross_n;
     u_int8_t flags;
 } Cell;
@@ -62,13 +63,12 @@ typedef struct _Cell {
 
 /*
  * Macro per la gestione dei semafori
- * Valori in [0, GRID_SIZE-1] usati per l'accesso alle celle
+ * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle
  */
 
 #define NSEMS  	  (GRID_SIZE + 2)
 #define SEM_START  GRID_SIZE
 #define SEM_KIDS  (GRID_SIZE + 1)
-
 
 
 /*
