@@ -22,7 +22,6 @@ int main(int argc, char *argv[])
     /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
 
     sa.sa_handler = handle_signal;
-
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);

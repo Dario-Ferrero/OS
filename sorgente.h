@@ -11,4 +11,4 @@ void handle_signal(int signum);
  */
 void terminate();
 
-#endif
+#endif /* __SORGENTE_H__ */

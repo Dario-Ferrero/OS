@@ -81,6 +81,10 @@ typedef struct _Cell {
 
 #define TRUE  1
 #define FALSE 0
+
+/*
+ * Genera un intero casualmente compreso tra a e b inclusi
+ */
 #define RAND_RNG(a, b) ((rand() % (b - a + 1)) + a)
 
 #endif /* __COMMON_H__ */
