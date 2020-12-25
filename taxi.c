@@ -1,31 +1,63 @@
 #include "common.h"
+#include "taxi.h"
 
-void handle_signal(int signum);
+int sem_id, shm_id;
+struct sembuf sops;
 
 int main(int argc, char *argv[])
 {
-    /* Creato dal master : leggere parametri (posizione, ???) */
+    int i, pos, cnt, SO_SOURCES, *src_pos;
+    Cell *city_grid;
+    struct sigaction sa;
+
+    /* Creato dal master : leggere parametri (posizione, SO_SOURCES, ???) */
+
+    pos = atoi(argv[1]);
+    SO_SOURCES = atoi(argv[2]);
+    fprintf(stderr, "Taxi creato! La mia posizione è %4d, SO_SOURCES è %d\n", pos, SO_SOURCES);
 
     /*
      * Assegnare handle_signal come handler per i segnali che gestisce
      */
-
-
-    /*
-     * Accedere alla griglia
-     * shm_id = shmget(getppid(), GRID_SIZE * sizeof(Cell), 0666);
-     * grid = (Cell *)shmat(shm_id);
-     * 
-     * Per ogni cella, se sorgente, salvarne la posizione in un array
-     */
-
+    sa.sa_handler = handle_signal;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
 
     /*
      * Accedere all'array di semafori per sincronizzarsi col master
-     * 
-     * sem_id = semget(getppid(), NSEMS, 0666);
      */
 
+    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
+        TEST_ERROR;
+        exit(EXIT_FAILURE);
+    }
+
+    SEMOP(sem_id, SEM_KIDS, 1, 0);
+    TEST_ERROR;
+
+    SEMOP(sem_id, SEM_START, 0, 0);
+    TEST_ERROR;
+
+#if 0
+
+    /*
+     * Accedere alla griglia, e per ogni cella sorgente salvarne la posizione in un array
+     */
+
+    if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
+        TEST_ERROR;
+        exit(EXIT_FAILURE);
+    }
+    city_grid = (Cell *)shmat(shm_id, NULL, 0);
+    TEST_ERROR;
+    src_pos = (int *)calloc(SO_SOURCES, sizeof(*src_pos));
+    for (i = 0, cnt = 0; i < GRID_SIZE; i++) {
+        if (IS_SOURCE(city_grid[i])) {
+            src_pos[cnt++] = i;
+        }
+    }
+#endif
 
     /*
      * Inizializzare le proprie variabili (es. TaxiStat)
@@ -33,8 +65,6 @@ int main(int argc, char *argv[])
 
     
     /*
-     * SE coda condivisa : accedere alla coda per l'invio delle richieste
-     * 
      * Accedere alla coda per l'invio delle statistiche
      */
 
@@ -63,6 +93,7 @@ void handle_signal(int signum)
     switch (signum) {
     case SIGINT:
     case SIGTERM:
+        exit(EXIT_FAILURE);
         /* Terminazione forzata : free(), shmdt(), e SE la simulazione è iniziata invia stats al master */
         break;
     case SIGALRM:

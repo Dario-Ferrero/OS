@@ -21,10 +21,10 @@ void read_params();
 void check_params();
 
 /*
- * Inizializza le celle della city_grid in memoria condivisa e ne ritorna l'id.
+ * Inizializza le celle della city_grid in memoria condivisa.
  * SO_HOLES di queste sono marcate come inaccessibili.
  */
-int init_city_grid();
+void init_city_grid();
 
 /*
  * Ritorna TRUE se almeno una cella adiacente a city_grid[pos] è una HOLE_CELL
@@ -53,10 +53,14 @@ void print_grid();
 void handle_signal(int signum);
 
 /*
- * Terminazione forzata : rilascia le risorse
+ * Termina i processi figli
+ */
+void term_kids();
+
+/*
+ * Rilascia le risorse IPC e termina
  */
 void terminate();
-
 
 /*
  * Parametri di configurazione, letti a run-time

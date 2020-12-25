@@ -16,10 +16,11 @@ pid_t *taxis, *srcs;
 int main(int argc, char *argv[])
 {
     pid_t child_pid;
-    int i, status, *src_pos;
+    int i, status, pos, *src_pos;
     char *src_args[3],
-         *taxi_args[3],
-         args_buf[10];
+         *taxi_args[4],
+         pos_buf[10],
+         arg_buf[10];
 
     struct sigaction sa;
 
@@ -32,7 +33,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "parametri validi.\n");
 
     fprintf(stderr, "Inizializzazione griglia... \n\n");
-    shm_id = init_city_grid();
+    init_city_grid();
     fprintf(stderr, "Griglia inizializzata\n");
 
     print_grid();
@@ -49,7 +50,11 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     for (i = 0; i < GRID_SIZE; i++) {
-        semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
+        if (!IS_HOLE(city_grid[i])) {
+            semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
+        } else {
+            semctl(sem_id, i, SETVAL, 0);
+        }
     }
     semctl(sem_id, SEM_START, SETVAL, 1);
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
@@ -61,7 +66,7 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
 
 
-    fprintf(stderr, "Creazione processi sorgente...\n");
+    fprintf(stderr, "\nCreazione processi sorgente...\n");
     srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
     src_args[0] = SRC_FILE;
     src_args[2] = NULL;
@@ -72,8 +77,8 @@ int main(int argc, char *argv[])
             TEST_ERROR;
             terminate();
         case 0:
-            sprintf(args_buf, "%d", src_pos[i]);
-            src_args[1] = args_buf;
+            sprintf(pos_buf, "%d", src_pos[i]);
+            src_args[1] = pos_buf;
             execvp(SRC_FILE, src_args);
             exit(EXIT_FAILURE);
             break;
@@ -87,7 +92,50 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Master sbloccato, le sorgenti si sono inizializzate.\n");
+    fprintf(stderr, "\nMaster sbloccato, le sorgenti si sono inizializzate.\n");
+
+    fprintf(stderr, "\nCreazione processi taxi...\n");
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
+    taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
+    taxi_args[0] = TAXI_FILE;
+    sprintf(arg_buf, "%d", SO_SOURCES);
+    taxi_args[2] = arg_buf;
+    taxi_args[3] = NULL;
+    for (i = 0; i < SO_TAXI; i++) {
+        switch (child_pid = fork()) {
+        case -1:
+            fprintf(stderr, "Fork fallita.\n");
+            TEST_ERROR;
+            terminate();
+        case 0:
+            /* taxi : genero posizione random e verifico se posso accedere su semaforo */
+            pos = -1;
+            srand(getpid());
+            while (pos < 0) {
+                pos = RAND_RNG(0, GRID_SIZE-1);
+                i = semctl(sem_id, pos, GETVAL);
+                if (i > 0) {
+                    SEMOP(sem_id, pos, -1, 0);
+                } else {
+                    pos = -1;
+                }
+            }
+            sprintf(pos_buf, "%d", pos);
+            taxi_args[1] = pos_buf;
+            execvp(TAXI_FILE, taxi_args);
+            exit(EXIT_FAILURE);
+            break;
+        default:
+            taxis[i] = child_pid;
+        }
+    }
+
+    /* Aspetto che i taxi abbiano finito di inizializzarsi */
+
+    SEMOP(sem_id, SEM_KIDS, -SO_TAXI, 0);
+    TEST_ERROR;
+
+    fprintf(stderr, "\nMaster sbloccato, i taxi si sono inizializzati.\n");
 
     /* print_grid_values(); */
 
@@ -98,8 +146,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
     }
 
-    free(src_pos);
     free(srcs);
+    free(taxis);
+    free(src_pos);
     terminate();
 }
 
@@ -166,13 +215,13 @@ void check_params()
 }
 
 
-int init_city_grid()
+void init_city_grid()
 {
     int i, pos;
 
     if ((shm_id = shmget(getpid(),
                   GRID_SIZE * sizeof(*city_grid),
-                  IPC_CREAT | IPC_EXCL | 0600)) == -1) {
+                  IPC_CREAT | IPC_EXCL | 0666)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
@@ -301,6 +350,7 @@ void handle_signal(int signum)
     switch (signum) {
     case SIGTERM:
     case SIGINT:
+        term_kids();
         terminate();
         break;
     
@@ -313,16 +363,26 @@ void handle_signal(int signum)
 }
 
 
+void term_kids()
+{
+    int i, status;
+
+    for (i = 0; i < SO_SOURCES; i++) {
+        kill(srcs[i], SIGTERM);
+    }
+    for (i = 0; i < SO_TAXI; i++) {
+        kill(taxis[i], SIGTERM);
+    }
+    while ((i = wait(&status)) != -1) {
+        fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", i, WEXITSTATUS(status));
+    }
+    free(srcs);
+    free(taxis);
+}
+
+
 void terminate()
 {
-    int i;
-
-    /*
-     * TODO:
-     * - uccidere sorgenti
-     * - uccidere taxi
-     */
-
     shmdt(city_grid);
     shmctl(shm_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
