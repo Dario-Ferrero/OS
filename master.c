@@ -17,10 +17,7 @@ int main(int argc, char *argv[])
 {
     pid_t child_pid;
     int i, status, pos, *src_pos;
-    char *src_args[3],
-         *taxi_args[4],
-         pos_buf[10],
-         arg_buf[10];
+    
 
     struct sigaction sa;
 
@@ -44,21 +41,9 @@ int main(int argc, char *argv[])
 
     print_grid();
 
-    if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
-        TEST_ERROR;
-        fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
-        exit(EXIT_FAILURE);
-    }
-    for (i = 0; i < GRID_SIZE; i++) {
-        if (!IS_HOLE(city_grid[i])) {
-            semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
-        } else {
-            semctl(sem_id, i, SETVAL, 0);
-        }
-    }
-    semctl(sem_id, SEM_START, SETVAL, 1);
-    semctl(sem_id, SEM_KIDS, SETVAL, 0);
-
+    fprintf(stderr, "Inizializzazione semafori... ");
+    init_sems();
+    fprintf(stderr, "semafori inizializzati.\n");
 
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
@@ -66,76 +51,27 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
 
 
-    fprintf(stderr, "\nCreazione processi sorgente...\n");
-    srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
-    src_args[0] = SRC_FILE;
-    src_args[2] = NULL;
-    for (i = 0; i < SO_SOURCES; i++) {
-        switch (child_pid = fork()) {
-        case -1:
-            fprintf(stderr, "Fork fallita.\n");
-            TEST_ERROR;
-            terminate();
-        case 0:
-            sprintf(pos_buf, "%d", src_pos[i]);
-            src_args[1] = pos_buf;
-            execvp(SRC_FILE, src_args);
-            exit(EXIT_FAILURE);
-            break;
-        default:
-            srcs[i] = child_pid;
-        }
-    }
+    fprintf(stderr, "Creazione processi sorgente...\n");
+    create_sources(src_pos);
 
     /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
 
     SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
     TEST_ERROR;
 
+    fprintf(stderr, "Processi sorgente creati.\n");
     fprintf(stderr, "\nMaster sbloccato, le sorgenti si sono inizializzate.\n");
 
     fprintf(stderr, "\nCreazione processi taxi...\n");
-    semctl(sem_id, SEM_KIDS, SETVAL, 0);
-    taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
-    taxi_args[0] = TAXI_FILE;
-    sprintf(arg_buf, "%d", SO_SOURCES);
-    taxi_args[2] = arg_buf;
-    taxi_args[3] = NULL;
-    for (i = 0; i < SO_TAXI; i++) {
-        switch (child_pid = fork()) {
-        case -1:
-            fprintf(stderr, "Fork fallita.\n");
-            TEST_ERROR;
-            terminate();
-        case 0:
-            /* taxi : genero posizione random e verifico se posso accedere su semaforo */
-            pos = -1;
-            srand(getpid());
-            while (pos < 0) {
-                pos = RAND_RNG(0, GRID_SIZE-1);
-                i = semctl(sem_id, pos, GETVAL);
-                if (i > 0) {
-                    SEMOP(sem_id, pos, -1, 0);
-                } else {
-                    pos = -1;
-                }
-            }
-            sprintf(pos_buf, "%d", pos);
-            taxi_args[1] = pos_buf;
-            execvp(TAXI_FILE, taxi_args);
-            exit(EXIT_FAILURE);
-            break;
-        default:
-            taxis[i] = child_pid;
-        }
-    }
+    create_taxis();
 
     /* Aspetto che i taxi abbiano finito di inizializzarsi */
 
     SEMOP(sem_id, SEM_KIDS, -SO_TAXI, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "\nMaster sbloccato, i taxi si sono inizializzati.\n");
+    fprintf(stderr, "Processi taxi creati.\n");
+    fprintf(stderr, "\nMaster sbloccato, i taxi si sono inizializzati.\n\n");
 
     /* print_grid_values(); */
 
@@ -143,7 +79,7 @@ int main(int argc, char *argv[])
     TEST_ERROR;
 
     while ((child_pid = wait(&status)) != -1) {
-        fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
+        fprintf(stderr, "Child #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
     }
 
     free(srcs);
@@ -327,21 +263,114 @@ void print_grid_values()
 }
 
 
-void assign_sources(int **sources)
+void assign_sources(int **src_pos)
 {
     int cnt, i, pos;
 
-    *sources = (int *)calloc(SO_SOURCES, sizeof(*sources));
+    *src_pos = (int *)calloc(SO_SOURCES, sizeof(*src_pos));
     cnt = SO_SOURCES;
     i = 0;
     do {
         pos = RAND_RNG(0, GRID_SIZE-1);
         if (!IS_HOLE(city_grid[pos]) && !IS_SOURCE(city_grid[pos])) {
             city_grid[pos].flags |= SRC_CELL;
-            (*sources)[i++] = pos;
+            (*src_pos)[i++] = pos;
             cnt--;
         }
     } while (cnt > 0);
+}
+
+
+void init_sems()
+{
+    int i;
+
+    if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
+        TEST_ERROR;
+        fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
+        exit(EXIT_FAILURE);
+    }
+    for (i = 0; i < GRID_SIZE; i++) {
+        if (!IS_HOLE(city_grid[i])) {
+            semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
+        } else {
+            semctl(sem_id, i, SETVAL, 0);
+        }
+    }
+    semctl(sem_id, SEM_START, SETVAL, 1);
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
+}
+
+
+void create_sources(int *src_pos)
+{
+    int i, child_pid;
+    char pos_buf[10],
+        *src_args[3];
+
+    srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
+    src_args[0] = SRC_FILE;
+    src_args[2] = NULL;
+    for (i = 0; i < SO_SOURCES; i++) {
+        switch (child_pid = fork()) {
+        case -1:
+            fprintf(stderr, "Fork fallita.\n");
+            TEST_ERROR;
+            terminate();
+        case 0:
+            sprintf(pos_buf, "%d", src_pos[i]);
+            src_args[1] = pos_buf;
+            execvp(SRC_FILE, src_args);
+            exit(EXIT_FAILURE);
+            break;
+        default:
+            srcs[i] = child_pid;
+        }
+    }
+}
+
+
+void create_taxis()
+{
+    int i, pos, child_pid;
+    char *taxi_args[4],
+         pos_buf[10],
+         arg_buf[10];
+
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
+    taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
+    taxi_args[0] = TAXI_FILE;
+    sprintf(arg_buf, "%d", SO_SOURCES);
+    taxi_args[2] = arg_buf;
+    taxi_args[3] = NULL;
+    for (i = 0; i < SO_TAXI; i++) {
+        switch (child_pid = fork()) {
+        case -1:
+            fprintf(stderr, "Fork fallita.\n");
+            TEST_ERROR;
+            terminate();
+        case 0:
+            /* taxi : genero posizione random e verifico se posso accedere su semaforo */
+            pos = -1;
+            srand(getpid());
+            while (pos < 0) {
+                pos = RAND_RNG(0, GRID_SIZE-1);
+                i = semctl(sem_id, pos, GETVAL);
+                if (i > 0) {
+                    SEMOP(sem_id, pos, -1, 0);
+                } else {
+                    pos = -1;
+                }
+            }
+            sprintf(pos_buf, "%d", pos);
+            taxi_args[1] = pos_buf;
+            execvp(TAXI_FILE, taxi_args);
+            exit(EXIT_FAILURE);
+            break;
+        default:
+            taxis[i] = child_pid;
+        }
+    }
 }
 
 

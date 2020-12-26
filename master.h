@@ -38,6 +38,22 @@ int check_adj_cells(long pos);
 void assign_sources(int **sources);
 
 /*
+ * Crea ed inizializza l'array di semafori, salvandone l'id in sem_id.
+ */
+void init_sems();
+
+/*
+ * Crea SO_SOURCES processi sorgente, passando ad ognuno una posizione nella
+ * griglia tra quelle in src_pos.
+ */
+void create_sources(int *src_pos);
+
+/*
+ * Crea SO_TAXIS processi taxi, ognuno in una cella casuale ed abbastanza libera
+ */
+void create_taxis();
+
+/*
  * Stampa a terminale, per ogni cella di city_grid, il valore dei suoi campi
  */
 void print_grid_values();
