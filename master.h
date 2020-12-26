@@ -75,9 +75,10 @@ void print_grid();
 void handle_signal(int signum);
 
 /*
- * Termina i processi figli
+ * Termina i primi nkids processi figli in kids, per poi liberare
+ * la memoria allocata dall'array
  */
-void term_kids();
+void term_kids(pid_t *kids, int nkids);
 
 /*
  * Rilascia le risorse IPC e termina

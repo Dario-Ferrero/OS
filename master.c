@@ -393,7 +393,8 @@ void create_printer()
     case -1:
         fprintf(stderr, "Fork fallita.\n");
         TEST_ERROR;
-        term_kids();
+        term_kids(srcs, SO_SOURCES);
+        term_kids(taxis, SO_TAXI);
         terminate();
         break;
     case 0:
@@ -411,7 +412,10 @@ void handle_signal(int signum)
     switch (signum) {
     case SIGTERM:
     case SIGINT:
-        term_kids();
+        term_kids(srcs, SO_SOURCES);
+        term_kids(taxis, SO_TAXI);
+        kill(printer, SIGTERM);
+        wait(NULL);
         terminate();
         break;
     
@@ -433,21 +437,17 @@ void handle_signal(int signum)
 }
 
 
-void term_kids()
+void term_kids(pid_t *kids, int nkids)
 {
     int i, status;
 
-    for (i = 0; i < SO_SOURCES; i++) {
-        kill(srcs[i], SIGTERM);
+    for (i = 0; i < nkids; i++) {
+        kill(kids[i], SIGTERM);
     }
-    for (i = 0; i < SO_TAXI; i++) {
-        kill(taxis[i], SIGTERM);
+    while (i = wait(&status)) {
+        fprintf(stderr, "Figlio #%5d terminato con exit status %d\n", i, WEXITSTATUS(status));
     }
-    while ((i = wait(&status)) != -1) {
-        fprintf(stderr, "Child (src) #%d terminated with exit status %d\n", i, WEXITSTATUS(status));
-    }
-    free(srcs);
-    free(taxis);
+    free(kids);
 }
 
 

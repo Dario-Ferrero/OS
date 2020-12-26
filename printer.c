@@ -54,6 +54,7 @@ void handle_signal(int signum)
         break;
     case SIGINT:
     case SIGTERM:
+        terminate();
         break;
     default:
         break;
