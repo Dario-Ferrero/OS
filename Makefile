@@ -1,6 +1,6 @@
 CFLAGS = -pedantic -std=c89
 
-master : master.c master.h common.h sorgente taxi
+master : master.c master.h common.h sorgente taxi printer
 	$(CC) $(CFLAGS) master.c -o master
 
 sorgente : sorgente.c sorgente.h common.h
@@ -8,6 +8,9 @@ sorgente : sorgente.c sorgente.h common.h
 
 taxi : taxi.c taxi.h common.h
 	$(CC) $(CFLAGS) taxi.c -o taxi
+
+printer : printer.c printer.h common.h
+	$(CC) $(CFLAGS) printer.c -o printer
 
 clear :
 	rm -f *.o master

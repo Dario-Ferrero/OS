@@ -11,14 +11,12 @@ Cell *city_grid;
 int sem_id, shm_id;
 struct sembuf sops;
 
-pid_t *taxis, *srcs;
+pid_t *taxis, *srcs, printer;
 
 int main(int argc, char *argv[])
 {
     pid_t child_pid;
     int i, status, pos, *src_pos;
-    
-
     struct sigaction sa;
 
     fprintf(stderr, "Inizio lettura parametri... ");
@@ -50,7 +48,6 @@ int main(int argc, char *argv[])
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
-
     fprintf(stderr, "Creazione processi sorgente...\n");
     create_sources(src_pos);
 
@@ -63,6 +60,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "\nMaster sbloccato, le sorgenti si sono inizializzate.\n");
 
     fprintf(stderr, "\nCreazione processi taxi...\n");
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
     create_taxis();
 
     /* Aspetto che i taxi abbiano finito di inizializzarsi */
@@ -74,6 +72,17 @@ int main(int argc, char *argv[])
     fprintf(stderr, "\nMaster sbloccato, i taxi si sono inizializzati.\n\n");
 
     /* print_grid_values(); */
+
+    fprintf(stderr, "Creazione processo printer...\n");
+    semctl(sem_id, SEM_KIDS, SETVAL, 0);
+    create_printer();
+
+    /* Aspetto che il printer abbia finito di inizializzarsi */
+
+    SEMOP(sem_id, SEM_KIDS, -1, 0);
+    TEST_ERROR;
+
+    fprintf(stderr, "Processi figli creati, può partire la simulazione\n");
 
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
@@ -337,7 +346,6 @@ void create_taxis()
          pos_buf[10],
          arg_buf[10];
 
-    semctl(sem_id, SEM_KIDS, SETVAL, 0);
     taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
     taxi_args[0] = TAXI_FILE;
     sprintf(arg_buf, "%d", SO_SOURCES);
@@ -374,6 +382,30 @@ void create_taxis()
 }
 
 
+void create_printer()
+{
+    int child_pid;
+    char *prt_args[2];
+
+    prt_args[0] = PRINTER_FILE;
+    prt_args[1] = NULL;
+    switch (child_pid = fork()) {
+    case -1:
+        fprintf(stderr, "Fork fallita.\n");
+        TEST_ERROR;
+        term_kids();
+        terminate();
+        break;
+    case 0:
+        execvp(PRINTER_FILE, prt_args);
+        exit(EXIT_FAILURE);
+        break;
+    default:
+        printer = child_pid;
+    }
+}
+
+
 void handle_signal(int signum)
 {
     switch (signum) {
@@ -386,6 +418,15 @@ void handle_signal(int signum)
     case SIGALRM:
         break;
     
+    case SIGCHLD:
+        /*
+         * Terminazione di un figlio:
+         * - prima della simulazione : qualcosa è andato storto...
+         * - durante : taxi terminato
+         * - dopo : li devo terminare fuori, MASCHERARE IL SEGNALE
+         */
+        break;
+
     default:
         break;
     }

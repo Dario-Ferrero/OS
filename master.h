@@ -7,6 +7,7 @@
 
 #define SRC_FILE "./sorgente"
 #define TAXI_FILE "./taxi"
+#define PRINTER_FILE "./printer"
 
 
 /*
@@ -52,6 +53,11 @@ void create_sources(int *src_pos);
  * Crea SO_TAXIS processi taxi, ognuno in una cella casuale ed abbastanza libera
  */
 void create_taxis();
+
+/* 
+ * Crea il processo che si occupa della stampa ad ogni secondo della simulazione
+ */
+void create_printer();
 
 /*
  * Stampa a terminale, per ogni cella di city_grid, il valore dei suoi campi
