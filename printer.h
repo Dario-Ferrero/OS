@@ -2,6 +2,11 @@
 #define __PRINTER_H__
 
 /*
+ * Stampa lo stato della city_grid durante la simulazione
+ */
+void print_grid_state();
+
+/*
  * Terminazione forzata : rilascia le risorse
  */
 void terminate();

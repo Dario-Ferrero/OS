@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
 
+    print_grid_state();
 
     /* Finito inizializzazione, può partire la simulazione */
 
@@ -43,6 +44,47 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     
     shmdt(city_grid);
+}
+
+
+void print_grid_state()
+{
+    int x, y, n_taxi;
+
+    fprintf(stderr, "\n\n\n     ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "%d ", x % 10);
+    }
+    fprintf(stderr, "\n    ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "--");
+    }
+    fprintf(stderr, "-\n");
+
+    for (y = 0; y < SO_HEIGHT; y++) {
+        fprintf(stderr, " %d | ", y % 10);
+        for (x = 0; x < SO_WIDTH; x++) {
+            n_taxi = city_grid[INDEX(x, y)].capacity -
+                     semctl(sem_id, INDEX(x, y), GETVAL);
+            TEST_ERROR;
+            if (IS_HOLE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "H ");
+            } else if (n_taxi) { 
+                fprintf(stderr, "%d ", n_taxi);
+            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "S ");
+            } else {
+                fprintf(stderr, "%c ", (char)96);
+            }
+        }
+        fprintf(stderr, "|\n");
+    }
+
+    fprintf(stderr, "    ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "--");
+    }
+    fprintf(stderr, "-\n\n\n");
 }
 
 

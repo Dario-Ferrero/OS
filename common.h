@@ -19,6 +19,7 @@ typedef struct _Cell {
     long cross_time;
 	int msq_id;
     sig_atomic_t cross_n;
+	u_int8_t capacity;
     u_int8_t flags;
 } Cell;
 
@@ -83,7 +84,7 @@ typedef struct _Cell {
 #define FALSE 0
 
 /*
- * Genera un intero casualmente compreso tra a e b inclusi
+ * Genera un intero casualmente incluso tra a e b
  */
 #define RAND_RNG(a, b) ((rand() % (b - a + 1)) + a)
 

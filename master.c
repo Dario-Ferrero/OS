@@ -193,6 +193,7 @@ void init_city_grid()
             city_grid[i].cross_time = (long)RAND_RNG(SO_TIMENSEC_MIN, SO_TIMENSEC_MAX);
             city_grid[i].msq_id = 0;
             city_grid[i].cross_n = 0;
+            city_grid[i].capacity = RAND_RNG(SO_CAP_MIN, SO_CAP_MAX);
             city_grid[i].flags = 0;
         }
     }
@@ -220,55 +221,6 @@ int check_adj_cells(long pos)
     }
 
     return res;
-}
-
-
-void print_grid()
-{
-    int x, y;
-
-    fprintf(stderr, "\n\n\n     ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "%d ", x % 10);
-    }
-    fprintf(stderr, "\n    ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
-    }
-    fprintf(stderr, "-\n");
-
-    for (y = 0; y < SO_HEIGHT; y++) {
-        fprintf(stderr, " %d | ", y % 10);
-        for (x = 0; x < SO_WIDTH; x++) {
-            if (IS_HOLE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "H ");
-            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "S ");
-            } else {
-                fprintf(stderr, "%c ", (char)96);
-            }
-        }
-        fprintf(stderr, "|\n");
-    }
-
-    fprintf(stderr, "    ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
-    }
-    fprintf(stderr, "-\n\n\n");
-}
-
-
-void print_grid_values()
-{
-    long i;
-
-    for (i = 0; i < GRID_SIZE; i++) {
-        fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
-        fprintf(stderr, "city_grid[%3ld].msq_id = %d\n", i, city_grid[i].msq_id);
-        fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
-        fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
-    }
 }
 
 
@@ -301,7 +253,7 @@ void init_sems()
     }
     for (i = 0; i < GRID_SIZE; i++) {
         if (!IS_HOLE(city_grid[i])) {
-            semctl(sem_id, i, SETVAL, RAND_RNG(SO_CAP_MIN, SO_CAP_MAX));
+            semctl(sem_id, i, SETVAL, city_grid[i].capacity);
         } else {
             semctl(sem_id, i, SETVAL, 0);
         }
@@ -403,6 +355,56 @@ void create_printer()
         break;
     default:
         printer = child_pid;
+    }
+}
+
+
+void print_grid()
+{
+    int x, y;
+
+    fprintf(stderr, "\n\n\n     ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "%d ", x % 10);
+    }
+    fprintf(stderr, "\n    ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "--");
+    }
+    fprintf(stderr, "-\n");
+
+    for (y = 0; y < SO_HEIGHT; y++) {
+        fprintf(stderr, " %d | ", y % 10);
+        for (x = 0; x < SO_WIDTH; x++) {
+            if (IS_HOLE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "H ");
+            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
+                fprintf(stderr, "S ");
+            } else {
+                fprintf(stderr, "%c ", (char)96);
+            }
+        }
+        fprintf(stderr, "|\n");
+    }
+
+    fprintf(stderr, "    ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        fprintf(stderr, "--");
+    }
+    fprintf(stderr, "-\n\n\n");
+}
+
+
+void print_grid_values()
+{
+    long i;
+
+    for (i = 0; i < GRID_SIZE; i++) {
+        fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
+        fprintf(stderr, "city_grid[%3ld].msq_id = %d\n", i, city_grid[i].msq_id);
+        fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
+        fprintf(stderr, "city_grid[%3ld].capacity = %d\n", i, city_grid[i].capacity);
+        fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
     }
 }
 
