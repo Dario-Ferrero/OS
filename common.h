@@ -24,6 +24,15 @@ typedef struct _Cell {
 } Cell;
 
 
+typedef struct _TaxiStats {
+    long mtype;
+    pid_t taxi_pid;
+    int cells_crossed;
+    int reqs_compl;
+    unsigned long route_time;
+} TaxiStats;
+
+
 /*
  * Macro per debugging
  */

@@ -3,6 +3,7 @@
 
 int sem_id, shm_id;
 struct sembuf sops;
+TaxiStats stats;
 
 int main(int argc, char *argv[])
 {
@@ -14,7 +15,7 @@ int main(int argc, char *argv[])
 
     pos = atoi(argv[1]);
     SO_SOURCES = atoi(argv[2]);
-    fprintf(stderr, "Taxi creato! La mia posizione è %4d, SO_SOURCES è %d\n", pos, SO_SOURCES);
+    /* fprintf(stderr, "Taxi creato! La mia posizione è %4d, SO_SOURCES è %d\n", pos, SO_SOURCES); */
 
     /*
      * Assegnare handle_signal come handler per i segnali che gestisce
@@ -25,26 +26,7 @@ int main(int argc, char *argv[])
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
-    /*
-     * Accedere all'array di semafori per sincronizzarsi col master
-     */
-
-    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
-        TEST_ERROR;
-        exit(EXIT_FAILURE);
-    }
-
-    SEMOP(sem_id, SEM_KIDS, 1, 0);
-    TEST_ERROR;
-
-    SEMOP(sem_id, SEM_START, 0, 0);
-    TEST_ERROR;
-
-#if 0
-
-    /*
-     * Accedere alla griglia, e per ogni cella sorgente salvarne la posizione in un array
-     */
+    /* Accedere alla griglia, e per ogni cella sorgente salvarne la posizione in un array */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -58,13 +40,21 @@ int main(int argc, char *argv[])
             src_pos[cnt++] = i;
         }
     }
-#endif
 
-    /*
-     * Inizializzare le proprie variabili (es. TaxiStat)
-     */
+    /* Accedere all'array di semafori per sincronizzarsi col master */
 
-    
+    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
+        TEST_ERROR;
+        free(src_pos);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Inizializzare le proprie variabili (es. TaxiStat) */
+
+    bzero(&stats, sizeof(stats));
+    stats.taxi_pid = getpid();
+
+
     /*
      * Accedere alla coda per l'invio delle statistiche
      */
@@ -73,6 +63,15 @@ int main(int argc, char *argv[])
     /*
      * Pronto ? Allora signal su SEM_KIDS e wait for zero su SEM_START
      */
+
+    i = best_pos(pos, src_pos, SO_SOURCES);
+    fprintf(stderr, "Taxi #%5d:  posizione = %4d  closest src = %4d  SO_SOURCES = %d\n", getpid(), pos, i, SO_SOURCES);
+
+    SEMOP(sem_id, SEM_KIDS, 1, 0);
+    TEST_ERROR;
+
+    SEMOP(sem_id, SEM_START, 0, 0);
+    TEST_ERROR;
 
     /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
     while (1) {
@@ -86,6 +85,26 @@ int main(int argc, char *argv[])
         break;
     }
 
+    free(src_pos);
+}
+
+
+int best_pos(int cur_pos, int *src_pos, int n_src)
+{
+    int i, x, y, res, min_dist, dist;
+
+    min_dist = SO_WIDTH + SO_HEIGHT;
+    res = -1;
+    for (i = 0; i < n_src; i++) {
+        x = GET_X(src_pos[i]);
+        y = GET_Y(src_pos[i]);
+        dist = ABS(x - GET_X(cur_pos)) + ABS(y - GET_Y(cur_pos));
+        if (dist < min_dist) { /* Nel caso sia già su una sorgente ? */
+            min_dist = dist;
+            res = src_pos[i];
+        }
+    }
+    return res;
 }
 
 
