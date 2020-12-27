@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
     pid_t child_pid;
     int i, status, pos, *src_pos;
     struct sigaction sa;
+    sigset_t sig_mask;
 
     fprintf(stderr, "Inizio lettura parametri... ");
     read_params();
@@ -43,6 +44,7 @@ int main(int argc, char *argv[])
     init_sems();
     fprintf(stderr, "semafori inizializzati.\n");
 
+    bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
@@ -446,7 +448,7 @@ void term_kids(pid_t *kids, int nkids)
     for (i = 0; i < nkids; i++) {
         kill(kids[i], SIGTERM);
     }
-    while (i = wait(&status)) {
+    while ((i = wait(&status)) != -1) {
         fprintf(stderr, "Figlio #%5d terminato con exit status %d\n", i, WEXITSTATUS(status));
     }
     free(kids);
@@ -458,5 +460,5 @@ void terminate()
     shmdt(city_grid);
     shmctl(shm_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }

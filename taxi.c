@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
     /*
      * Assegnare handle_signal come handler per i segnali che gestisce
      */
+    bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);

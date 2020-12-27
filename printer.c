@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
 
     /* Gestire maschere e segnali */
 
+    bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
