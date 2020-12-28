@@ -8,6 +8,23 @@
 #define SRC_FILE "./sorgente"
 #define TAXI_FILE "./taxi"
 #define PRINTER_FILE "./printer"
+#define BUF_SIZE 10
+
+
+/*
+ * Parametri di configurazione, letti a run-time
+ */
+
+int SO_HOLES;
+int SO_TOP_CELLS;
+int SO_SOURCES;
+int SO_CAP_MIN;
+int SO_CAP_MAX;
+int SO_TAXI;
+int SO_TIMENSEC_MIN;
+int SO_TIMENSEC_MAX;
+int SO_TIMEOUT;
+int SO_DURATION;
 
 
 /*
@@ -84,21 +101,6 @@ void term_kids(pid_t *kids, int nkids);
  * Rilascia le risorse IPC e termina
  */
 void terminate();
-
-/*
- * Parametri di configurazione, letti a run-time
- */
-
-int SO_HOLES;
-int SO_TOP_CELLS;
-int SO_SOURCES;
-int SO_CAP_MIN;
-int SO_CAP_MAX;
-int SO_TAXI;
-int SO_TIMENSEC_MIN;
-int SO_TIMENSEC_MAX;
-int SO_TIMEOUT;
-int SO_DURATION;
 
 
 #endif /* __MASTER_H__ */

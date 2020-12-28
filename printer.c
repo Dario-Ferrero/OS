@@ -69,11 +69,15 @@ void print_grid_state()
                      semctl(sem_id, INDEX(x, y), GETVAL);
             TEST_ERROR;
             if (IS_HOLE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "H ");
-            } else if (n_taxi) { 
-                fprintf(stderr, "%d ", n_taxi);
+                fprintf(stderr, ANSI_RED"H "ANSI_RESET);
+            } else if (n_taxi) {
+                if (IS_SOURCE(city_grid[INDEX(x, y)])) {
+                    fprintf(stderr, ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
+                } else {
+                    fprintf(stderr, "%d ", n_taxi);
+                }
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "S ");
+                fprintf(stderr, ANSI_YELLOW"S "ANSI_RESET);
             } else {
                 fprintf(stderr, "%c ", (char)96);
             }

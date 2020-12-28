@@ -33,6 +33,11 @@ typedef struct _TaxiStats {
 } TaxiStats;
 
 
+typedef struct _Request {
+    long mtype; /* src_cell */
+    int dest_cell; /* basta mtype (?) */
+} Request;
+
 /*
  * Macro per debugging
  */
@@ -76,9 +81,10 @@ typedef struct _TaxiStats {
  * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle
  */
 
-#define NSEMS  	  (GRID_SIZE + 2)
+#define NSEMS  	  (GRID_SIZE + 3)
 #define SEM_START  GRID_SIZE
 #define SEM_KIDS  (GRID_SIZE + 1)
+#define SEM_PRINT (GRID_SIZE + 2)
 #define SEMOP(id, num, op, flg)		sops.sem_num = num;		\
 									sops.sem_op = op;		\
 									sops.sem_flg = flg;		\
@@ -96,5 +102,13 @@ typedef struct _TaxiStats {
  * Genera un intero casualmente incluso tra a e b
  */
 #define RAND_RNG(a, b) ((rand() % (b - a + 1)) + a)
+
+/*
+ * Stampa colorata a terminale
+ */
+
+#define ANSI_YELLOW "\x1b[33m"
+#define ANSI_RED "\x1b[31m"
+#define ANSI_RESET "\x1b[0m"
 
 #endif /* __COMMON_H__ */

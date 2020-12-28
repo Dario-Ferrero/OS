@@ -1,20 +1,22 @@
 #include "common.h"
 #include "taxi.h"
 
-int sem_id, shm_id;
+int sem_id, shm_id, reqsq_id, SO_TIMEOUT;
+Cell *city_grid;
 struct sembuf sops;
 TaxiStats stats;
 
 int main(int argc, char *argv[])
 {
-    int i, pos, cnt, SO_SOURCES, *src_pos;
-    Cell *city_grid;
+    int i, pos, cnt, dest_pos, SO_SOURCES, *src_pos;
+    Request req;
     struct sigaction sa;
 
     /* Creato dal master : leggere parametri (posizione, SO_SOURCES, ???) */
 
     pos = atoi(argv[1]);
     SO_SOURCES = atoi(argv[2]);
+    SO_TIMEOUT = atoi(argv[3]);
     /* fprintf(stderr, "Taxi creato! La mia posizione è %4d, SO_SOURCES è %d\n", pos, SO_SOURCES); */
 
     /*
@@ -54,18 +56,16 @@ int main(int argc, char *argv[])
     bzero(&stats, sizeof(stats));
     stats.taxi_pid = getpid();
 
-
-    /*
-     * Accedere alla coda per l'invio delle statistiche
-     */
+    /* Accedere alla coda per l'invio delle statistiche : adesso o prima di terminare ??? */
 
 
     /*
      * Pronto ? Allora signal su SEM_KIDS e wait for zero su SEM_START
      */
 
-    i = best_pos(pos, src_pos, SO_SOURCES);
-    fprintf(stderr, "Taxi #%5d:  posizione = %4d  closest src = %4d  SO_SOURCES = %d\n", getpid(), pos, i, SO_SOURCES);
+    i = closest_source(pos, src_pos, SO_SOURCES);
+    fprintf(stderr, "Taxi #%5d:  pos: (%3d, %3d)  goal: (%3d, %3d)   SO_SOURCES = %d\n",
+            getpid(), GET_X(pos), GET_Y(pos), GET_X(i), GET_Y(i), SO_SOURCES);
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -73,38 +73,105 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
+#if 0
     /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
     while (1) {
-        /*
-         * Sequenza varia a seconda di 1 o più msgq per ogni sorgente, ma le azioni sono :
-         * - trovare la posizione più vicina tramite manhattan distance
-         * - prelevare una richiesta
-         * - entrare nel ciclo di spostamento (funzione?) prima a src_cell, poi a dest_cell
-         * - mano a mano : tenere traccia dei valori per la stampa finale
-         */
-        break;
+        
+        /* GESTIRE MASCHERAZIONE SEGNALI E TIMER (qui o in drive() ?) */
+        
+        /* Trovare la sorgente più vicina tramite manhattan distance */
+
+        dest_pos = closest_source(pos, src_pos, SO_SOURCES);
+
+        /* Spostarsi su quella cella */
+
+        pos = drive(pos, dest_pos);
+
+        /* IF coda non vuota : prelevare una richiesta. ELSE continue; */
+
+        reqsq_id = city_grid[dest_pos].msq_id;
+        msgrcv(reqsq_id, &req, sizeof(req) - sizeof(long), 0, IPC_NOWAIT);
+        if (errno == ENOMSG) {
+            continue;
+        }
+
+        /* Spostarsi sulla cella di destinazione */
+
+        pos = drive(pos, req.dest_cell);
+
+        stats.reqs_compl += 1;
     }
+#endif /* #if 0 per il loop */
 
     free(src_pos);
 }
 
 
-int best_pos(int cur_pos, int *src_pos, int n_src)
+int closest_source(int cur_pos, int *src_pos, int n_src)
 {
-    int i, x, y, res, min_dist, dist;
+    int i, res, min_dist, dist;
 
     min_dist = SO_WIDTH + SO_HEIGHT;
     res = -1;
     for (i = 0; i < n_src; i++) {
-        x = GET_X(src_pos[i]);
-        y = GET_Y(src_pos[i]);
-        dist = ABS(x - GET_X(cur_pos)) + ABS(y - GET_Y(cur_pos));
+        dist = MANH_DIST(cur_pos, src_pos[i]);
         if (dist < min_dist) { /* Nel caso sia già su una sorgente ? */
             min_dist = dist;
             res = src_pos[i];
+            if (res == cur_pos) {
+                break;
+            }
         }
     }
     return res;
+}
+
+
+/*
+ * Occhio alla gestione sync per print / (dis)attivazione timer
+ * - Il check sul SEM_START (o SEM_PRINT) deve avvenire quando il timer è stato disattivato
+ *      - però : se il taxi non si è spostato ?
+ *      - fermo alarm, salvo i secondi che rimanevano, faccio il check e lo faccio ripartire
+ */
+int drive(int start, int goal)
+{
+    char i;
+    int pos,
+        roads[2] = {-1, -1};
+    
+    pos = start;
+    while (pos != goal) {
+        SEMOP(sem_id, SEM_PRINT, 0, 0);
+        
+
+        if (UP(pos) >= 0 && !IS_HOLE(city_grid[UP(pos)]) && GET_Y(goal) < GET_Y(pos)) {
+            single_move(pos, UP(pos));
+        } else if (LEFT(pos) >= 0 && !IS_HOLE(city_grid[LEFT(pos)]) && GET_X(goal) < GET_X(pos)) {
+            return 0;
+        }
+        
+    }
+        
+    return pos;
+}
+
+
+int single_move(int from, int dest)
+{
+    struct timespec cross_time;
+
+    SEMOP(sem_id, dest, -1, IPC_NOWAIT);
+    if (errno != EAGAIN) {
+        SEMOP(sem_id, from, 1, 0);
+        cross_time.tv_nsec = city_grid[dest].cross_time;
+        nanosleep(&cross_time, NULL);
+        stats.route_time += cross_time.tv_nsec;
+        stats.cells_crossed += 1;
+        city_grid[dest].cross_n += 1;
+        return dest;
+    }
+
+    return from;
 }
 
 

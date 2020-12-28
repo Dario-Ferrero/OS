@@ -8,7 +8,7 @@
  * e ridurre le signature delle funzioni
  */
 Cell *city_grid;
-int sem_id, shm_id;
+int sem_id, shm_id, statsq_id;
 struct sembuf sops;
 
 pid_t *taxis, *srcs, printer;
@@ -43,6 +43,13 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Inizializzazione semafori... ");
     init_sems();
     fprintf(stderr, "semafori inizializzati.\n");
+
+    fprintf(stderr, "Creazione coda di messaggi per statistiche taxi... ");
+    if ((statsq_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600)) == -1) {
+        TEST_ERROR;
+        terminate();
+    }
+    fprintf(stderr, "coda creata.\n");
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -262,13 +269,14 @@ void init_sems()
     }
     semctl(sem_id, SEM_START, SETVAL, 1);
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
+    semctl(sem_id, SEM_PRINT, SETVAL, 1);
 }
 
 
 void create_sources(int *src_pos)
 {
     int i, child_pid;
-    char pos_buf[10],
+    char pos_buf[BUF_SIZE],
         *src_args[3];
 
     srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
@@ -296,15 +304,18 @@ void create_sources(int *src_pos)
 void create_taxis()
 {
     int i, pos, child_pid;
-    char *taxi_args[4],
-         pos_buf[10],
-         arg_buf[10];
+    char *taxi_args[5],
+         pos_buf[BUF_SIZE],
+         srcs_buf[BUF_SIZE],
+         timeout_buf[BUF_SIZE];
 
     taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
     taxi_args[0] = TAXI_FILE;
-    sprintf(arg_buf, "%d", SO_SOURCES);
-    taxi_args[2] = arg_buf;
-    taxi_args[3] = NULL;
+    sprintf(srcs_buf, "%d", SO_SOURCES);
+    taxi_args[2] = srcs_buf;
+    sprintf(timeout_buf, "%d", SO_TIMEOUT);
+    taxi_args[3] = timeout_buf;
+    taxi_args[4] = NULL;
     for (i = 0; i < SO_TAXI; i++) {
         switch (child_pid = fork()) {
         case -1:
@@ -460,5 +471,6 @@ void terminate()
     shmdt(city_grid);
     shmctl(shm_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
+    msgctl(statsq_id, IPC_RMID, NULL);
     exit(EXIT_SUCCESS);
 }
