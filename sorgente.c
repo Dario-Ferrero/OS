@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
     int pos, shm_id;
     struct sigaction sa;
     Cell *city_grid;
+    Request req;
 
     /* 
      * Processo creato dal master, leggere i parametri passati tramite execve
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
+    
 
     /*
      * Accedere all'array di semafori per sincronizzarmi col master.
@@ -38,6 +40,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    
     /*
      * Accedere alla mia coda di messaggi per le richieste
      */
@@ -47,9 +50,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Devo scrivere l'id della coda nella sua cella, così che i taxi vi possano accedere 
-     */
+    /* Devo scrivere l'id della coda nella sua cella, così che i taxi vi possano accedere */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -59,9 +60,19 @@ int main(int argc, char *argv[])
     TEST_ERROR;
     city_grid[pos].msq_id = msq_id;
 
+    /* Invio una richiesta iniziale (di prova per il singolo taxi) */
+
+    req.mtype = pos;
+    srand(getpid());
+    do {
+        req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
+    } while (req.dest_cell == req.mtype || IS_HOLE(city_grid[req.dest_cell]));
+    msgsnd(msq_id, &req, MSG_LEN(req), 0);
+    TEST_ERROR;
+
     /* In teoria la memoria condivisa non serve più al processo */
     shmdt(city_grid);
-
+    
 
     /*
      * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
@@ -73,11 +84,13 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
+    sleep(60); /* Per testare il movimento del taxi (affinchè trovi almeno una richiesta) */
+
     terminate();
 
 
     /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
-
+#if 0
     while (1) {
         break;
 
@@ -86,6 +99,7 @@ int main(int argc, char *argv[])
          * * Attesa attiva o pause() ? (di fatto non ho nulla da fare...)
          */
     }
+#endif
 }
 
 void handle_signal(int signum)
@@ -108,6 +122,7 @@ void handle_signal(int signum)
      */
     case SIGALRM:
         /* Genera N_REQS richieste ed inseriscile nella coda */
+        terminate();
         break;
     case SIGUSR1:
         /* Genera una richiesta ed inseriscila nella coda */

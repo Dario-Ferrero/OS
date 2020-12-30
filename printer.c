@@ -52,18 +52,18 @@ void print_grid_state()
 {
     int x, y, n_taxi;
 
-    fprintf(stderr, "\n\n\n     ");
+    fprintf(stderr, "\n\n\n       ");
     for (x = 0; x < SO_WIDTH; x++) {
         fprintf(stderr, "%d ", x % 10);
     }
-    fprintf(stderr, "\n    ");
+    fprintf(stderr, "\n      ");
     for (x = 0; x < SO_WIDTH; x++) {
         fprintf(stderr, "--");
     }
     fprintf(stderr, "-\n");
 
     for (y = 0; y < SO_HEIGHT; y++) {
-        fprintf(stderr, " %d | ", y % 10);
+        fprintf(stderr, " %3d | ", y);
         for (x = 0; x < SO_WIDTH; x++) {
             n_taxi = city_grid[INDEX(x, y)].capacity -
                      semctl(sem_id, INDEX(x, y), GETVAL);
@@ -85,7 +85,7 @@ void print_grid_state()
         fprintf(stderr, "|\n");
     }
 
-    fprintf(stderr, "    ");
+    fprintf(stderr, "      ");
     for (x = 0; x < SO_WIDTH; x++) {
         fprintf(stderr, "--");
     }

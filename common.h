@@ -58,12 +58,13 @@ typedef struct _Request {
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  20
-#define SO_HEIGHT 10
+#define SO_WIDTH  60
+#define SO_HEIGHT 20
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)
 #define GET_Y(pos) ((pos - GET_X(pos)) / SO_WIDTH)
+#define IS_BORDER(pos) (pos < 0 || pos >= GRID_SIZE)
 
 
 /*
@@ -97,6 +98,7 @@ typedef struct _Request {
 
 #define TRUE  1
 #define FALSE 0
+#define MSG_LEN(msg) (sizeof(msg) - sizeof(msg.mtype))
 
 /*
  * Genera un intero casualmente incluso tra a e b
