@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 #if 1
     /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
 
-    srand(getpid());
+    srand(getpid() + time(NULL));
     alarm(timeout = SO_TIMEOUT);
 
     while (1) {
@@ -253,25 +253,18 @@ int circle_hole(int8_t dir, int goal)
 
 int get_road(int8_t dir)
 {
-    int next;
-
     switch (dir) {
         case GO_UP:
-            next = UP(taxi_pos);
-            break;
+            return UP(taxi_pos);
         case GO_DOWN:
-            next = DOWN(taxi_pos);
-            break;
+            return DOWN(taxi_pos);
         case GO_LEFT:
-            next = LEFT(taxi_pos);
-            break;
+            return LEFT(taxi_pos);
         case GO_RIGHT:
-            next = RIGHT(taxi_pos);
-            break;
+            return RIGHT(taxi_pos);
         default:
-            next = -1;
+            return -1;
     }
-    return next;
 }
 
 
@@ -296,14 +289,16 @@ int access_cell(int dest)
 
 void handle_signal(int signum)
 {
+    SEMOP(sem_id, taxi_pos, 1, 0);
+
     switch (signum) {
     case SIGINT:
     case SIGTERM:
+        
         exit(EXIT_FAILURE);
         /* Terminazione forzata : free(), shmdt() */
         break;
     case SIGALRM:
-        SEMOP(sem_id, taxi_pos, 1, 0);
         /* Timeout : chiudi tutto come sopra, ma exit status diverso e invia stats al master */
         break;
     }

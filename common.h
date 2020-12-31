@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
@@ -27,9 +28,9 @@ typedef struct _Cell {
 typedef struct _TaxiStats {
     long mtype;
     pid_t taxi_pid;
-    int cells_crossed;
-    int reqs_compl;
-    unsigned long route_time;
+    int16_t cells_crossed;
+    int16_t reqs_compl;
+	unsigned long route_time;
 } TaxiStats;
 
 
@@ -58,8 +59,8 @@ typedef struct _Request {
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  60
-#define SO_HEIGHT 20
+#define SO_WIDTH  20
+#define SO_HEIGHT 10
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)
@@ -76,6 +77,9 @@ typedef struct _Request {
 #define IS_HOLE(cell)   (cell.flags & HOLE_CELL)
 #define IS_SOURCE(cell) (cell.flags & SRC_CELL)
 
+
+#define TAXI_MTYPE 0x0100000000000000
+#define SRC_MTYPE  0x0200000000000000
 
 /*
  * Macro per la gestione dei semafori

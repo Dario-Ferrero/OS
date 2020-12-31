@@ -1,8 +1,6 @@
 #ifndef __TAXI_H__
 #define __TAXI_H__
 
-#include <time.h>
-
 #define ABS(n) (n < 0 ? -(n) : n)
 #define MANH_DIST(from, dest) (ABS(GET_X(dest) - GET_X(from)) + ABS(GET_Y(dest) - GET_Y(from)))
 

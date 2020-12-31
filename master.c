@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 
     /* print_grid_values(); */
 
-    fprintf(stderr, "Creazione processo printer...\n");
+    fprintf(stderr, "Creazione processo printer... ");
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
     create_printer();
 
@@ -91,10 +91,26 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -1, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Processi figli creati, può partire la simulazione\n");
+    fprintf(stderr, "Processi figli creati, può partire la simulazione!\n\n");
+
+    dprintf(STDOUT_FILENO, "I Process ID delle sorgenti sono osservabili:\n");
+    dprintf(STDOUT_FILENO, "- da terminale, tramite comandi \'top\' oppure \'ps -e | grep sorgente\'\n");
+    dprintf(STDOUT_FILENO, "- da applicazione, tramite il Monitor di Sistema\n");
+    dprintf(STDOUT_FILENO, "E' possibile generare una richiesta per una sorgente tramite il comando:\n\n");
+    dprintf(STDOUT_FILENO, "\t\t\tkill -SIGUSR1 pid_sorgente\n\n");
+    dprintf(STDOUT_FILENO, "Premere un tasto qualunque per iniziare la simulazione o Ctrl-c per annullarla.\n");
+    scanf("%c", (char *)&i);
 
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
+
+#if 0
+    alarm(SO_DURATION);
+    /* Ciclo di simulazione */
+    while (1) {
+
+    }
+#endif
 
     while ((child_pid = wait(&status)) != -1) {
         fprintf(stderr, "Child #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
@@ -185,7 +201,7 @@ void init_city_grid()
     TEST_ERROR;
 
     fprintf(stderr, "Assegnamento dei %d HOLE... ", SO_HOLES);
-    srand(getpid());
+    srand(getpid() + time(NULL));
     i = SO_HOLES;
     while (i > 0) {
         pos = rand() % GRID_SIZE;
@@ -325,7 +341,7 @@ void create_taxis()
         case 0:
             /* taxi : genero posizione random e verifico se posso accedere su semaforo */
             pos = -1;
-            srand(getpid());
+            srand(getpid() + time(NULL));
             while (pos < 0) {
                 pos = RAND_RNG(0, GRID_SIZE-1);
                 i = semctl(sem_id, pos, GETVAL);

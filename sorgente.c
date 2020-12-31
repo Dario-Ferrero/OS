@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     /* 
      * Processo creato dal master, leggere i parametri passati tramite execve
      * - posizione della propria cella
-     * - altri (?)
+     * - numero di richieste da inviare
      */
 
     pos = atoi(argv[1]);
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     /* Invio una richiesta iniziale (di prova per il singolo taxi) */
 
     req.mtype = pos;
-    srand(getpid());
+    srand(getpid() + time(NULL));
     do {
         req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
     } while (req.dest_cell == req.mtype || IS_HOLE(city_grid[req.dest_cell]));
@@ -84,22 +84,16 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
-    sleep(60); /* Per testare il movimento del taxi (affinchè trovi almeno una richiesta) */
-
-    terminate();
-
-
     /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
-#if 0
+
     while (1) {
-        break;
+        pause();
 
         /*
          * * Faccio partire l'alarm(1)
          * * Attesa attiva o pause() ? (di fatto non ho nulla da fare...)
          */
     }
-#endif
 }
 
 void handle_signal(int signum)
@@ -130,6 +124,12 @@ void handle_signal(int signum)
     default:
         break;
     }
+}
+
+
+void create_requests(int nreqs)
+{
+
 }
 
 
