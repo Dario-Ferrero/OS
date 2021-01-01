@@ -1,6 +1,8 @@
 #ifndef __MASTER_H__
 #define __MASTER_H__
 
+#include <sys/types.h> /* Per il pid_t nella dichiarazione di term_kids */
+
 #define PARAMS_FILE "test.conf"
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10
@@ -67,9 +69,10 @@ void init_sems();
 void create_sources(int *src_pos);
 
 /*
- * Crea SO_TAXIS processi taxi, ognuno in una cella casuale ed abbastanza libera
+ * Crea n_taxis processi taxi, ognuno in una cella casuale
+ * e con almeno un posto libero. Salva i nuovi pid nell'array globale taxis.
  */
-void create_taxis();
+void create_taxis(int n_taxis);
 
 /* 
  * Crea il processo che si occupa della stampa ad ogni secondo della simulazione

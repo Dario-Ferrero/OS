@@ -8,7 +8,8 @@
  * e ridurre le signature delle funzioni
  */
 Cell *city_grid;
-int sem_id, shm_id, statsq_id;
+int sem_id, shm_id, statsq_id,
+    taxis_size, taxis_i;
 struct sembuf sops;
 
 pid_t *taxis, *srcs, printer;
@@ -69,8 +70,11 @@ int main(int argc, char *argv[])
     fprintf(stderr, "\nMaster sbloccato, le sorgenti si sono inizializzate.\n");
 
     fprintf(stderr, "\nCreazione processi taxi...\n");
+    taxis_i = 0;
+    taxis_size = SO_TAXI;
+    taxis = (int *)calloc(taxis_size, sizeof(*taxis));
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
-    create_taxis();
+    create_taxis(taxis_size);
 
     /* Aspetto che i taxi abbiano finito di inizializzarsi */
 
@@ -317,7 +321,7 @@ void create_sources(int *src_pos)
 }
 
 
-void create_taxis()
+void create_taxis(int n_taxis)
 {
     int i, pos, child_pid;
     char *taxi_args[5],
@@ -325,14 +329,13 @@ void create_taxis()
          srcs_buf[BUF_SIZE],
          timeout_buf[BUF_SIZE];
 
-    taxis = (int *)calloc(SO_TAXI, sizeof(*taxis));
     taxi_args[0] = TAXI_FILE;
     sprintf(srcs_buf, "%d", SO_SOURCES);
     taxi_args[2] = srcs_buf;
     sprintf(timeout_buf, "%d", SO_TIMEOUT);
     taxi_args[3] = timeout_buf;
     taxi_args[4] = NULL;
-    for (i = 0; i < SO_TAXI; i++) {
+    for (i = 0; i < n_taxis; i++) {
         switch (child_pid = fork()) {
         case -1:
             fprintf(stderr, "Fork fallita.\n");
@@ -357,7 +360,11 @@ void create_taxis()
             exit(EXIT_FAILURE);
             break;
         default:
-            taxis[i] = child_pid;
+            if (taxis_i >= taxis_size-1) {
+                taxis_size <<= 1;
+                taxis = realloc(taxis, taxis_size * sizeof(*taxis));
+            }
+            taxis[taxis_i++] = child_pid;
         }
     }
 }
