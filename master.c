@@ -289,7 +289,7 @@ void init_sems()
     }
     semctl(sem_id, SEM_START, SETVAL, 1);
     semctl(sem_id, SEM_KIDS, SETVAL, 0);
-    semctl(sem_id, SEM_PRINT, SETVAL, 1);
+    semctl(sem_id, SEM_PRINT, SETVAL, 0);
 }
 
 

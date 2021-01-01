@@ -1,7 +1,7 @@
 #include "common.h"
 #include "taxi.h"
 
-int sem_id, shm_id, taxi_pos, timeout, SO_TIMEOUT;
+int sem_id, shm_id, taxi_pos, SO_TIMEOUT;
 Cell *city_grid;
 struct sembuf sops;
 TaxiStats stats;
@@ -9,9 +9,9 @@ TaxiStats stats;
 int main(int argc, char *argv[])
 {
     int i, cnt, dest_pos, exc_pos, SO_SOURCES, *src_pos;
-    Request req;
     struct sigaction sa;
-
+    Request req;
+    
     /* Creato dal master : leggere parametri (posizione, SO_SOURCES, ???) */
 
     taxi_pos = atoi(argv[1]);
@@ -67,6 +67,9 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Taxi #%5d:  taxi_pos: (%3d, %3d)  goal: (%3d, %3d)   SO_SOURCES = %d\n",
             getpid(), GET_X(taxi_pos), GET_Y(taxi_pos), GET_X(i), GET_Y(i), SO_SOURCES);
 
+    exc_pos = -1;
+    srand(getpid() + time(NULL));
+
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
 
@@ -75,10 +78,7 @@ int main(int argc, char *argv[])
 
 #if 1
     /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
-
-    exc_pos = -1;
-    srand(getpid() + time(NULL));
-    alarm(timeout = SO_TIMEOUT);
+    alarm(SO_TIMEOUT);
     while (1) {
         
         /* GESTIRE MASCHERAZIONE SEGNALI E TIMER (qui o in drive() ?) */
@@ -92,20 +92,20 @@ int main(int argc, char *argv[])
             taxi_pos = drive_diagonal(dest_pos);
             taxi_pos = drive_straight(dest_pos);
         }
-        fprintf(stderr, "Taxi ha raggiunto SORGENTE (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
-
+        /* fprintf(stderr, "Taxi ha raggiunto SORGENTE (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos)); */
 #if 1
         /* IF coda non vuota : prelevare una richiesta. ELSE continue; */
 
         msgrcv(city_grid[taxi_pos].msq_id, &req, MSG_LEN(req), 0, IPC_NOWAIT);
         if (errno == ENOMSG) {
             exc_pos = dest_pos;
-            fprintf(stderr, "Nessun messaggio sulla coda in (%3d, %3d) !\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+            /* fprintf(stderr, "Nessun messaggio sulla coda in (%3d, %3d) !\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
             continue;
         } else if (errno == EIDRM) {
+            /* fprintf(stderr, "Coda di messaggi a (%3d, %3d) rimossa!", GET_X(taxi_pos), GET_Y(taxi_pos)); */
             raise(SIGALRM);
         }
-        fprintf(stderr, "Prossima fermata: (%3d, %3d)\n", GET_X(req.dest_cell), GET_Y(req.dest_cell));
+        /* fprintf(stderr, "Prossima fermata: (%3d, %3d)\n", GET_X(req.dest_cell), GET_Y(req.dest_cell)); */
 
         /* Spostarsi sulla cella di destinazione */
 
@@ -113,8 +113,8 @@ int main(int argc, char *argv[])
             taxi_pos = drive_diagonal(req.dest_cell);
             taxi_pos = drive_straight(req.dest_cell);
         }
-        stats.reqs_compl += 1;
-        fprintf(stderr, "Taxi ha raggiunto DESTINAZIONE (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+        stats.reqs_compl++;
+        /*fprintf(stderr, "Taxi ha raggiunto DESTINAZIONE (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
 #endif
     }
 #endif /* #if 0 per il loop */
@@ -157,7 +157,7 @@ int drive_diagonal(int goal)
 
     roads[0] = GET_Y(taxi_pos) > GET_Y(goal) ? GO_UP : GO_DOWN;
     roads[1] = GET_X(taxi_pos) > GET_X(goal) ? GO_LEFT : GO_RIGHT;
-    
+
     while (!ALIGNED(taxi_pos, goal)) {
         switch (roads[RAND_RNG(0, 1)]) { /* Scelgo tra una delle due strade che mi avvicinano a goal */
         case GO_UP:
@@ -181,8 +181,7 @@ int drive_diagonal(int goal)
         if (valid) {
             taxi_pos = access_cell(next);
             if (taxi_pos == next) {
-                alarm(timeout = SO_TIMEOUT); /* Qui o in access_cell() ? */
-                fprintf(stderr, "dd:  Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+                /*fprintf(stderr, "dd:  Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
             }
         }
     }
@@ -197,14 +196,15 @@ int drive_straight(int goal)
     int next;
 
     new_dir = SAME_COLUMN(taxi_pos, goal) ? GO_UP : GO_LEFT;
-    new_dir += GET_Y(taxi_pos) < GET_Y(goal) || GET_X(taxi_pos) < GET_X(goal) ? 1 : 0;
+    if (GET_Y(taxi_pos) < GET_Y(goal) || GET_X(taxi_pos) < GET_X(goal)) {
+        new_dir++;
+    }
     while (taxi_pos != goal) {
         next = get_road(new_dir);
         if (!IS_HOLE(city_grid[next])) {
             taxi_pos = access_cell(next);
             if (taxi_pos == next) { /* Mi sono spostato */
-                alarm(timeout = SO_TIMEOUT); /* Qui o in access_cell() ? */
-                fprintf(stderr, "ds:  Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+                /*fprintf(stderr, "ds:  Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
             }
         } else { /* Circumnavigarlo (funzione apposita ?) */
             taxi_pos = circle_hole(new_dir, goal);
@@ -230,8 +230,7 @@ int circle_hole(int8_t dir, int goal)
         if (!IS_BORDER(next)) {
             taxi_pos = access_cell(next);
             if (taxi_pos == next) {
-                alarm(timeout = SO_TIMEOUT); /* Qui o in access_cell() ? */
-                fprintf(stderr, "ch1: Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+                /*fprintf(stderr, "ch1: Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
             }
         }
         dir = old_dir;
@@ -241,8 +240,7 @@ int circle_hole(int8_t dir, int goal)
     do {
         taxi_pos = access_cell(next);
     } while (taxi_pos != next);
-    alarm(timeout = SO_TIMEOUT); /* Qui o in access_cell() ? */
-    fprintf(stderr, "ch2: Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
+    /*fprintf(stderr, "ch2: Taxi ha raggiunto posizione (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));*/
 
     return taxi_pos;
 }
@@ -266,19 +264,34 @@ int get_road(int8_t dir)
 
 int access_cell(int dest)
 {
+    int time_left;
     struct timespec cross_time;
+    sigset_t sig_mask;
+
+    sigemptyset(&sig_mask);
+    sigaddset(&sig_mask, SIGALRM);
+
+    time_left = alarm(0);
+    SEMOP(sem_id, SEM_PRINT, 0, 0);
+    alarm(time_left);
 
     SEMOP(sem_id, dest, -1, IPC_NOWAIT);
     if (errno != EAGAIN) {
         SEMOP(sem_id, taxi_pos, 1, 0);
+        cross_time.tv_sec = 0;
         cross_time.tv_nsec = city_grid[dest].cross_time;
         nanosleep(&cross_time, NULL);
-        stats.route_time += cross_time.tv_nsec;
-        stats.cells_crossed += 1;
-        city_grid[dest].cross_n += 1;
-        return dest;
-    }
 
+        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
+        stats.route_time += cross_time.tv_nsec;
+        stats.cells_crossed++;
+        city_grid[dest].cross_n++;
+        taxi_pos = dest;
+        SEMOP(sem_id, SEM_PRINT, 0, 0);
+        alarm(SO_TIMEOUT);
+        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
+    }
+    
     return taxi_pos;
 }
 
@@ -290,7 +303,6 @@ void handle_signal(int signum)
     switch (signum) {
     case SIGINT:
     case SIGTERM:
-        
         exit(EXIT_FAILURE);
         /* Terminazione forzata : free(), shmdt() */
         break;

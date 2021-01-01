@@ -19,7 +19,6 @@ int main(int argc, char *argv[])
     sa.sa_handler = handle_signal;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGALRM, &sa, NULL);
 
     /* Accedere all'array di semafori */
 
@@ -43,6 +42,13 @@ int main(int argc, char *argv[])
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     SEMOP(sem_id, SEM_START, 0, 0);
+
+    while (1) {
+        sleep(1);
+        SEMOP(sem_id, SEM_PRINT, 1, 0);
+        print_grid_state();
+        SEMOP(sem_id, SEM_PRINT, -1, 0);
+    }
     
     shmdt(city_grid);
 }
@@ -97,8 +103,6 @@ void handle_signal(int signum)
 {
     switch (signum)
     {
-    case SIGALRM:
-        break;
     case SIGINT:
     case SIGTERM:
         terminate();
