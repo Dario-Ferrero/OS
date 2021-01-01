@@ -8,7 +8,7 @@ TaxiStats stats;
 
 int main(int argc, char *argv[])
 {
-    int i, cnt, dest_pos, SO_SOURCES, *src_pos;
+    int i, cnt, dest_pos, exc_pos, SO_SOURCES, *src_pos;
     Request req;
     struct sigaction sa;
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
      * Pronto ? Allora signal su SEM_KIDS e wait for zero su SEM_START
      */
 
-    i = closest_source(src_pos, SO_SOURCES);
+    i = closest_source(src_pos, SO_SOURCES, -1);
     fprintf(stderr, "Taxi #%5d:  taxi_pos: (%3d, %3d)  goal: (%3d, %3d)   SO_SOURCES = %d\n",
             getpid(), GET_X(taxi_pos), GET_Y(taxi_pos), GET_X(i), GET_Y(i), SO_SOURCES);
 
@@ -76,16 +76,16 @@ int main(int argc, char *argv[])
 #if 1
     /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
 
+    exc_pos = -1;
     srand(getpid() + time(NULL));
     alarm(timeout = SO_TIMEOUT);
-
     while (1) {
         
         /* GESTIRE MASCHERAZIONE SEGNALI E TIMER (qui o in drive() ?) */
 
         /* Trovare la sorgente più vicina tramite manhattan distance */
 
-        dest_pos = closest_source(src_pos, SO_SOURCES);
+        dest_pos = closest_source(src_pos, SO_SOURCES, exc_pos);
 
         /* Spostarsi su quella cella */
         while (taxi_pos != dest_pos) {
@@ -97,8 +97,10 @@ int main(int argc, char *argv[])
 #if 1
         /* IF coda non vuota : prelevare una richiesta. ELSE continue; */
 
-        msgrcv(city_grid[dest_pos].msq_id, &req, sizeof(req) - sizeof(long), 0, IPC_NOWAIT);
+        msgrcv(city_grid[taxi_pos].msq_id, &req, MSG_LEN(req), 0, IPC_NOWAIT);
         if (errno == ENOMSG) {
+            exc_pos = dest_pos;
+            fprintf(stderr, "Nessun messaggio sulla coda in (%3d, %3d) !\n", GET_X(taxi_pos), GET_Y(taxi_pos));
             continue;
         } else if (errno == EIDRM) {
             raise(SIGALRM);
@@ -113,7 +115,6 @@ int main(int argc, char *argv[])
         }
         stats.reqs_compl += 1;
         fprintf(stderr, "Taxi ha raggiunto DESTINAZIONE (%3d, %3d)\n", GET_X(taxi_pos), GET_Y(taxi_pos));
-        break;
 #endif
     }
 #endif /* #if 0 per il loop */
@@ -122,7 +123,7 @@ int main(int argc, char *argv[])
 }
 
 
-int closest_source(int *src_pos, int n_src)
+int closest_source(int *src_pos, int n_src, int except)
 {
     int i, res, min_dist, dist;
 
@@ -130,12 +131,7 @@ int closest_source(int *src_pos, int n_src)
     res = -1;
     for (i = 0; i < n_src; i++) {
         dist = MANH_DIST(taxi_pos, src_pos[i]);
-        if (dist < min_dist) {
-            /*
-             * Nel caso sia già su una sorgente ?
-             * - magari non ho trovato messaggi su di una coda e ne voglio cercare una diversa
-             * - caso particolarmente raro, forse non vale la pena pensarci
-             */
+        if (src_pos[i] != except && dist < min_dist) {
             min_dist = dist;
             res = src_pos[i];
             if (res == taxi_pos) {
@@ -299,6 +295,7 @@ void handle_signal(int signum)
         /* Terminazione forzata : free(), shmdt() */
         break;
     case SIGALRM:
+        exit(2);
         /* Timeout : chiudi tutto come sopra, ma exit status diverso e invia stats al master */
         break;
     }

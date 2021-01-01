@@ -28,9 +28,9 @@
 
 /* 
  * Stima tramite la distanza di Manhattan la posizione della cella sorgente
- * più vicina a taxi_pos tra le n_src presenti in src_pos.
+ * più vicina a taxi_pos tra le n_src presenti in src_pos (esclusa 'except').
  */
-int closest_source(int *src_pos, int n_src);
+int closest_source(int *src_pos, int n_src, int except);
 
 /*
  * Sposta il taxi dalla posizione taxi_pos, portandolo su una posizione
