@@ -29,8 +29,6 @@ int main(int argc, char *argv[])
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
-    
-
     /*
      * Accedere all'array di semafori per sincronizzarmi col master.
      */
@@ -40,7 +38,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    
     /*
      * Accedere alla mia coda di messaggi per le richieste
      */
@@ -62,7 +59,7 @@ int main(int argc, char *argv[])
 
     /* Invio una richiesta iniziale (di prova per il singolo taxi) */
 
-    req.mtype = pos;
+    req.mtype = pos + 1;
     srand(getpid() + time(NULL));
     do {
         req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
@@ -72,7 +69,6 @@ int main(int argc, char *argv[])
 
     /* In teoria la memoria condivisa non serve più al processo */
     shmdt(city_grid);
-    
 
     /*
      * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
