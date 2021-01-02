@@ -297,17 +297,20 @@ void create_sources(int *src_pos)
 {
     int i, child_pid;
     char pos_buf[BUF_SIZE],
-        *src_args[3];
+         nreqs_buf[BUF_SIZE],
+        *src_args[4];
 
     srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
     src_args[0] = SRC_FILE;
-    src_args[2] = NULL;
+    sprintf(nreqs_buf, "%d", (SO_TAXI / SO_SOURCES) ? (SO_TAXI / SO_SOURCES) : 1);
+    src_args[2] = nreqs_buf;
+    src_args[3] = NULL;
     for (i = 0; i < SO_SOURCES; i++) {
         switch (child_pid = fork()) {
         case -1:
             fprintf(stderr, "Fork fallita.\n");
             TEST_ERROR;
-            terminate();
+            exit(EXIT_FAILURE);
         case 0:
             sprintf(pos_buf, "%d", src_pos[i]);
             src_args[1] = pos_buf;
@@ -340,7 +343,7 @@ void create_taxis(int n_taxis)
         case -1:
             fprintf(stderr, "Fork fallita.\n");
             TEST_ERROR;
-            terminate();
+            exit(EXIT_FAILURE);
         case 0:
             /* taxi : genero posizione random e verifico se posso accedere su semaforo */
             pos = -1;
@@ -381,9 +384,7 @@ void create_printer()
     case -1:
         fprintf(stderr, "Fork fallita.\n");
         TEST_ERROR;
-        term_kids(srcs, SO_SOURCES);
-        term_kids(taxis, SO_TAXI);
-        terminate();
+        exit(EXIT_FAILURE);
         break;
     case 0:
         execvp(PRINTER_FILE, prt_args);
@@ -451,7 +452,7 @@ void handle_signal(int signum)
     case SIGTERM:
     case SIGINT:
         term_kids(srcs, SO_SOURCES);
-        term_kids(taxis, SO_TAXI);
+        term_kids(taxis, taxis_i);
         kill(printer, SIGTERM);
         wait(NULL);
         terminate();

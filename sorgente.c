@@ -1,7 +1,7 @@
 #include "common.h"
 #include "sorgente.h"
 
-int sem_id, msq_id;
+int sem_id, msq_id, reqsps;
 struct sembuf sops;
 
 int main(int argc, char *argv[])
@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
      */
 
     pos = atoi(argv[1]);
-    fprintf(stderr, "Sorgente creata! La mia posizione è : %d\n", pos);
+    reqsps = atoi(argv[2]);
+    fprintf(stderr, "Sorgente creata! La mia posizione è : %d, reqsps è %d\n", pos, reqsps);
 
     /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
 
