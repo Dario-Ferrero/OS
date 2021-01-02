@@ -1,14 +1,14 @@
 #include "common.h"
 #include "sorgente.h"
 
-int sem_id, msq_id, reqsps;
+int sem_id, msq_id, source_pos, reqs_rate;
 struct sembuf sops;
+Cell *city_grid;
 
 int main(int argc, char *argv[])
 {
-    int pos, shm_id;
+    int source_pos, shm_id;
     struct sigaction sa;
-    Cell *city_grid;
     Request req;
 
     /* 
@@ -17,9 +17,9 @@ int main(int argc, char *argv[])
      * - numero di richieste da inviare
      */
 
-    pos = atoi(argv[1]);
-    reqsps = atoi(argv[2]);
-    fprintf(stderr, "Sorgente creata! La mia posizione è : %d, reqsps è %d\n", pos, reqsps);
+    source_pos = atoi(argv[1]);
+    reqs_rate = atoi(argv[2]);
+    fprintf(stderr, "Sorgente creata! La mia posizione è : %d, reqs_rate è %d\n", source_pos, reqs_rate);
 
     /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
 
@@ -56,20 +56,12 @@ int main(int argc, char *argv[])
     }
     city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
-    city_grid[pos].msq_id = msq_id;
+    city_grid[source_pos].msq_id = msq_id;
 
-    /* Invio una richiesta iniziale (di prova per il singolo taxi) */
+    /* Invio reqs_rate richieste iniziali */
 
-    req.mtype = pos + 1;
     srand(getpid() + time(NULL));
-    do {
-        req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
-    } while (req.dest_cell == req.mtype || IS_HOLE(city_grid[req.dest_cell]));
-    msgsnd(msq_id, &req, MSG_LEN(req), 0);
-    TEST_ERROR;
-
-    /* In teoria la memoria condivisa non serve più al processo */
-    shmdt(city_grid);
+    create_requests(reqs_rate);
 
     /*
      * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
@@ -84,6 +76,7 @@ int main(int argc, char *argv[])
     /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
 
     while (1) {
+        /* alarm(BURST_INTERVAL); */
         pause();
 
         /*
@@ -126,12 +119,26 @@ void handle_signal(int signum)
 
 void create_requests(int nreqs)
 {
+    int i;
+    Request req;
 
+    req.mtype = source_pos + 1;
+    for (i = 0; i < nreqs; i++) {
+        do {
+            req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
+        } while (IS_HOLE(city_grid[req.dest_cell]) || req.dest_cell == source_pos);
+        msgsnd(msq_id, &req, MSG_LEN(req), 0);
+        TEST_ERROR;
+        if (errno == EINTR) {
+            i--;
+        }
+    }
 }
 
 
 void terminate()
 {
+    shmdt(city_grid);
     msgctl(msq_id, IPC_RMID, NULL);
     exit(EXIT_FAILURE);
 }
