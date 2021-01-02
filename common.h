@@ -33,10 +33,14 @@ typedef struct _TaxiStats {
 	unsigned long route_time;
 } TaxiStats;
 
+typedef struct _SourceStats {
+	long mtype;
+	u_int64_t reqs_unpicked;
+} SourceStats;
 
 typedef struct _Request {
-    long mtype; /* src_cell */
-    int dest_cell; /* basta mtype (?) */
+    long mtype; 	/* posizione della cella di origine + 1 */
+    int dest_cell;
 } Request;
 
 /*
@@ -68,18 +72,18 @@ typedef struct _Request {
 #define IS_BORDER(pos) (pos < 0 || pos >= GRID_SIZE)
 
 
-/*
- * Valori di flag per una cella
- */
+/* Valori di flag per una cella */
 
 #define SRC_CELL  0x01
 #define HOLE_CELL 0x02
 #define IS_HOLE(cell)   (cell.flags & HOLE_CELL)
 #define IS_SOURCE(cell) (cell.flags & SRC_CELL)
 
+/* Valori di mtype per le struct di statistiche */
 
-#define TAXI_MTYPE 0x0100000000000000
-#define SRC_MTYPE  0x0200000000000000
+#define REQ_SUCC_MTYPE 1
+#define REQ_ABRT_MTYPE 2
+#define SOURCE_MTYPE 3
 
 /*
  * Macro per la gestione dei semafori

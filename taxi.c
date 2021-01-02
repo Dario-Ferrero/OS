@@ -18,9 +18,8 @@ int main(int argc, char *argv[])
     SO_SOURCES = atoi(argv[2]);
     SO_TIMEOUT = atoi(argv[3]);
 
-    /*
-     * Assegnare handle_signal come handler per i segnali che gestisce
-     */
+    /* Assegnare handle_signal come handler per i segnali che gestisce */
+
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
@@ -53,6 +52,7 @@ int main(int argc, char *argv[])
     /* Inizializzare le proprie variabili (es. TaxiStat) */
 
     bzero(&stats, sizeof(stats));
+    stats.mtype = REQ_SUCC_MTYPE;
     stats.taxi_pid = getpid();
 
     exc_pos = -1;
@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
         } else if (errno == EIDRM) {
             raise(SIGALRM);
         }
+        stats.mtype = REQ_ABRT_MTYPE;
 
         /* Spostarsi sulla cella di destinazione */
 
@@ -99,9 +100,9 @@ int main(int argc, char *argv[])
             taxi_pos = drive_straight(req.dest_cell);
         }
         stats.reqs_compl++;
+        stats.mtype = REQ_SUCC_MTYPE;
     }
 
-    free(sources_pos);
 }
 
 
@@ -273,7 +274,7 @@ void handle_signal(int signum)
         /* Terminazione forzata : free(), shmdt() */
         break;
     case SIGALRM:
-        exit(2);
+        exit(EXIT_SUCCESS);
         /* Timeout : chiudi tutto come sopra, ma exit status diverso e invia stats al master */
         break;
     }

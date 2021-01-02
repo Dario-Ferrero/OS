@@ -95,10 +95,7 @@ int main(int argc, char *argv[])
 
 void handle_signal(int signum)
 {
-    int err;
-
-    switch (signum)
-    {
+    switch (signum) {
     case SIGINT: /* Ctrl-C da terminale */
     case SIGTERM: /* "End Process" nel manager di sistema (NO SIGKILL) */
         terminate();
@@ -108,13 +105,8 @@ void handle_signal(int signum)
         create_requests(1);
         break;
     case SIGALRM:
-        /*
-         * Usarlo comunque per la terminazione a fine simulazione ?
-         * - master chiama kill(src_pid, SIGALRM)
-         * - sorgente apre la coda delle statistiche: msgget(getppid(), 0666);
-         * - invia il numero di richieste ancora sulla propria coda (IPC_STAT ?)
-         * - terminate();
-         */
+        send_stats();
+        terminate();
         break;
     default:
         break;
@@ -134,6 +126,28 @@ void create_requests(int nreqs)
         } while (IS_HOLE(city_grid[req.dest_cell]) || req.dest_cell == source_pos);
         msgsnd(msq_id, &req, MSG_LEN(req), 0);
     }
+}
+
+
+void send_stats()
+{
+    int statsq_id;
+    SourceStats stats;
+    struct msqid_ds buf;
+
+    if ((statsq_id = msgget(getppid(), 0600)) == -1) {
+        TEST_ERROR;
+        fprintf(stderr, "%s: PID #%5d: Errore nell'apertura della coda per le statistiche.\n", __FILE__, getpid());
+        exit(EXIT_FAILURE);
+    }
+    if (msgctl(statsq_id, IPC_STAT, &buf) == -1) {
+        TEST_ERROR;
+        fprintf(stderr, "%s: PID #%5d: Errore nella msgctl.\n", __FILE__, getpid());
+        exit(EXIT_FAILURE);
+    }
+    stats.mtype = SOURCE_MTYPE;
+    stats.reqs_unpicked = buf.msg_qnum;
+    msgsnd(statsq_id, &stats, MSG_LEN(stats), 0);
 }
 
 

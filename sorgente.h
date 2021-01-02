@@ -10,6 +10,12 @@
 void create_requests(int nreqs);
 
 /*
+ * Invia al processo master un messaggio SourceStats per informarlo
+ * del numero di richieste inevase per la propria coda di messaggi.
+ */
+void send_stats();
+
+/*
  * Signal handler per il processo
  */
 void handle_signal(int signum);
