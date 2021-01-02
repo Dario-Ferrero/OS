@@ -173,7 +173,7 @@ int drive_straight(int goal)
         new_dir++;
     }
     while (taxi_pos != goal) {
-        next = get_road(new_dir);
+        next = get_next(new_dir);
         if (!IS_HOLE(city_grid[next])) {
             taxi_pos = access_cell(next);
         } else { /* Circumnavigarlo */
@@ -196,14 +196,14 @@ int circle_hole(int8_t dir, int goal)
         old_dir = dir;
         dir += (dir == GO_UP || dir == GO_LEFT) ? RAND_RNG(2, 3) : RAND_RNG(1, 2);
         dir %= N_ROADS;
-        next = get_road(dir);
+        next = get_next(dir);
         if (!IS_BORDER(next)) {
             taxi_pos = access_cell(next);
         }
         dir = old_dir;
     } while (taxi_pos != next);
 
-    next = get_road(dir);
+    next = get_next(dir);
     do {
         taxi_pos = access_cell(next);
     } while (taxi_pos != next);
@@ -211,7 +211,7 @@ int circle_hole(int8_t dir, int goal)
     return taxi_pos;
 }
 
-int get_road(int8_t dir)
+int get_next(int8_t dir)
 {
     switch (dir) {
         case GO_UP:
@@ -264,18 +264,33 @@ int access_cell(int dest)
 
 void handle_signal(int signum)
 {
+    int statsq_id;
+
     SEMOP(sem_id, taxi_pos, 1, 0);
+    shmdt(city_grid);
     free(sources_pos);
 
     switch (signum) {
     case SIGINT:
     case SIGTERM:
+        /* Terminazione forzata */
         exit(EXIT_FAILURE);
-        /* Terminazione forzata : free(), shmdt() */
         break;
     case SIGALRM:
-        exit(EXIT_SUCCESS);
-        /* Timeout : chiudi tutto come sopra, ma exit status diverso e invia stats al master */
+        /* Timeout invia statistiche al master */
+        errno = 0;
+        if ((statsq_id = msgget(getppid(), 0600)) == -1) {
+            TEST_ERROR;
+            fprintf(stderr, "Errore nell'apertura della coda delle statistiche.\n");
+            exit(EXIT_FAILURE);
+        }
+        dprintf(STDOUT_FILENO, "%s:%d: CHECK\n", __FILE__, __LINE__);
+        do {
+            msgsnd(statsq_id, &stats, MSG_LEN(stats), 0);
+            TEST_ERROR;
+        } while (errno);
+        dprintf(STDOUT_FILENO, "%s:%d: CHECK\n", __FILE__, __LINE__);
+        exit(EXIT_TAXI);
         break;
     }
 }

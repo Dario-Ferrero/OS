@@ -116,5 +116,5 @@ void handle_signal(int signum)
 void terminate()
 {
     shmdt(city_grid);
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }

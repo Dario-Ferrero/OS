@@ -55,9 +55,9 @@ int drive_straight(int goal);
 int circle_hole(int8_t dir, int goal);
 
 /*
- * Ritorna la posizione rispetto a taxi_pos della cella in direzione dir.
+ * Ritorna la posizione, rispetto a taxi_pos, della cella in direzione dir.
  */
-int get_road(int8_t dir);
+int get_next(int8_t dir);
 
 /*
  * Sposta il taxi dalla cella taxi_pos alla cella adiacente dest di city_grid.

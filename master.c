@@ -8,16 +8,19 @@
  * e ridurre le signature delle funzioni
  */
 Cell *city_grid;
+TaxiStats *tstats;
 int sem_id, shm_id, statsq_id,
-    taxis_size, taxis_i;
+    taxis_size, taxis_i,
+    tstats_size, tstats_i,
+    *sources_pos;
 struct sembuf sops;
 
-pid_t *taxis, *srcs, printer;
+pid_t *taxis, *sources, printer;
 
 int main(int argc, char *argv[])
 {
     pid_t child_pid;
-    int i, status, pos, *src_pos;
+    int i, status, pos;
     struct sigaction sa;
     sigset_t sig_mask;
 
@@ -36,7 +39,7 @@ int main(int argc, char *argv[])
     print_grid();
 
     fprintf(stderr, "Assegnamento celle sorgente... ");
-    assign_sources(&src_pos);
+    assign_sources();
     fprintf(stderr, "celle sorgente assegnate.\n");
 
     print_grid();
@@ -50,8 +53,13 @@ int main(int argc, char *argv[])
         TEST_ERROR;
         terminate();
     }
+    tstats_i = 0;
+    tstats_size = SO_TAXI;
+    tstats = (TaxiStats *)calloc(tstats_size, sizeof(*tstats));
     fprintf(stderr, "coda creata.\n");
 
+    sigemptyset(&sig_mask);
+    sigaddset(&sig_mask, SIGALRM);
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
@@ -59,7 +67,7 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
 
     fprintf(stderr, "Creazione processi sorgente...\n");
-    create_sources(src_pos);
+    create_sources();
 
     /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
 
@@ -73,7 +81,6 @@ int main(int argc, char *argv[])
     taxis_i = 0;
     taxis_size = SO_TAXI;
     taxis = (int *)calloc(taxis_size, sizeof(*taxis));
-    semctl(sem_id, SEM_KIDS, SETVAL, 0);
     create_taxis(taxis_size);
 
     /* Aspetto che i taxi abbiano finito di inizializzarsi */
@@ -87,7 +94,6 @@ int main(int argc, char *argv[])
     /* print_grid_values(); */
 
     fprintf(stderr, "Creazione processo printer... ");
-    semctl(sem_id, SEM_KIDS, SETVAL, 0);
     create_printer();
 
     /* Aspetto che il printer abbia finito di inizializzarsi */
@@ -95,8 +101,7 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -1, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Processi figli creati, può partire la simulazione!\n\n");
-
+    dprintf(STDOUT_FILENO, "Processi figli creati, può partire la simulazione!\n\n");
     dprintf(STDOUT_FILENO, "I Process ID delle sorgenti sono osservabili:\n");
     dprintf(STDOUT_FILENO, "- da terminale, tramite comandi \'top\' oppure \'ps -e | grep sorgente\'\n");
     dprintf(STDOUT_FILENO, "- da applicazione, tramite il Monitor di Sistema\n");
@@ -108,22 +113,40 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
 
-#if 0
+#if 1
     alarm(SO_DURATION);
     /* Ciclo di simulazione */
-    while (1) {
-
+    while ((child_pid = wait(&status)) != -1) {
+        if (WEXITSTATUS(status) != EXIT_TAXI) {
+            fprintf(stderr, "Un processo figlio diverso da un taxi è terminato inaspettatamente.\n");
+            raise(SIGINT);
+        } 
+        while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
+                SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
+            sigprocmask(SIG_BLOCK, &sig_mask, NULL);
+            if (tstats_i >= tstats_size-1) {
+                tstats_size <<= 1;
+                tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
+            }
+            tstats_i++;
+            sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
+        }
+        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
+        create_taxis(1);
+        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
     }
-#endif
+#else
 
     while ((child_pid = wait(&status)) != -1) {
         fprintf(stderr, "Child #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
     }
 
-    free(srcs);
+    free(sources);
     free(taxis);
-    free(src_pos);
+    free(tstats);
+    free(sources_pos);
     terminate();
+#endif
 }
 
 
@@ -253,18 +276,18 @@ int check_adj_cells(long pos)
 }
 
 
-void assign_sources(int **src_pos)
+void assign_sources()
 {
     int cnt, i, pos;
 
-    *src_pos = (int *)calloc(SO_SOURCES, sizeof(*src_pos));
+    sources_pos = (int *)calloc(SO_SOURCES, sizeof(*sources_pos));
     cnt = SO_SOURCES;
     i = 0;
     do {
         pos = RAND_RNG(0, GRID_SIZE-1);
         if (!IS_HOLE(city_grid[pos]) && !IS_SOURCE(city_grid[pos])) {
             city_grid[pos].flags |= SRC_CELL;
-            (*src_pos)[i++] = pos;
+            sources_pos[i++] = pos;
             cnt--;
         }
     } while (cnt > 0);
@@ -293,14 +316,14 @@ void init_sems()
 }
 
 
-void create_sources(int *src_pos)
+void create_sources()
 {
     int i, child_pid;
     char pos_buf[BUF_SIZE],
          nreqs_buf[BUF_SIZE],
         *src_args[4];
 
-    srcs = (pid_t *)calloc(SO_SOURCES, sizeof(*srcs));
+    sources = (pid_t *)calloc(SO_SOURCES, sizeof(*sources));
     src_args[0] = SRC_FILE;
     sprintf(nreqs_buf, "%d", (SO_TAXI / SO_SOURCES) ? (SO_TAXI / SO_SOURCES) : 1);
     src_args[2] = nreqs_buf;
@@ -312,13 +335,13 @@ void create_sources(int *src_pos)
             TEST_ERROR;
             exit(EXIT_FAILURE);
         case 0:
-            sprintf(pos_buf, "%d", src_pos[i]);
+            sprintf(pos_buf, "%d", sources_pos[i]);
             src_args[1] = pos_buf;
             execvp(SRC_FILE, src_args);
             exit(EXIT_FAILURE);
             break;
         default:
-            srcs[i] = child_pid;
+            sources[i] = child_pid;
         }
     }
 }
@@ -365,7 +388,7 @@ void create_taxis(int n_taxis)
         default:
             if (taxis_i >= taxis_size-1) {
                 taxis_size <<= 1;
-                taxis = realloc(taxis, taxis_size * sizeof(*taxis));
+                taxis = (pid_t *)realloc(taxis, taxis_size * sizeof(*taxis));
             }
             taxis[taxis_i++] = child_pid;
         }
@@ -446,30 +469,91 @@ void print_grid_values()
 }
 
 
+void end_simulation()
+{
+    int i, child_cnt;
+    long req_succ, req_unpicked, req_abrt;
+    SourceStats src_stat;
+
+    SEMOP(sem_id, SEM_PRINT, 0, 0);
+    kill(printer, SIGINT);
+    wait(NULL);
+    SEMOP(sem_id, SEM_PRINT, 1, 0);
+
+    req_succ = req_unpicked = req_abrt = 0;
+    for (i = 0; i < SO_SOURCES; i++) {
+        kill(sources[i], SIGALRM);
+    }
+
+    child_cnt = SO_SOURCES;
+    while (child_cnt-- && msgrcv(statsq_id, &src_stat, MSG_LEN(src_stat), SOURCE_MTYPE, 0) != -1) {
+        dprintf(STDOUT_FILENO, "%d: CHECK #%d\n", __LINE__, child_cnt);
+        req_unpicked += src_stat.reqs_unpicked;
+    }
+    while (waitpid(-1, NULL, WNOHANG) != 0);
+
+    for (i = 0; i < taxis_i; i++) {
+        kill(taxis[i], SIGALRM);
+    }
+    child_cnt = taxis_i - tstats_i;
+    while (child_cnt-- && msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
+            SOURCE_MTYPE, MSG_EXCEPT) != -1) {
+        dprintf(STDOUT_FILENO, "%d: CHECK #%d\n", __LINE__, child_cnt);
+        if (tstats_i >= tstats_size-1) {
+            tstats_size <<= 1;
+            tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
+        }
+        tstats_i++;
+    }
+    while (wait(NULL) != -1);
+
+    for (i = 0; i < taxis_i; i++) {
+        if (tstats[i].mtype == REQ_ABRT_MTYPE) {
+            req_abrt++;
+        }
+        req_succ += tstats[i].reqs_compl;
+    }
+
+    dprintf(STDOUT_FILENO, "Simulazione Terminata.\n\n");
+    dprintf(STDOUT_FILENO, "# Richieste completate con successo %ld\n", req_succ);
+    dprintf(STDOUT_FILENO, "# Richieste inevase %ld\n", req_unpicked);
+    dprintf(STDOUT_FILENO, "# Richieste abortite %ld\n\n", req_abrt);
+
+    free(taxis);
+    free(sources);
+    free(tstats);
+    free(sources_pos);
+}
+
+
 void handle_signal(int signum)
 {
     switch (signum) {
     case SIGTERM:
     case SIGINT:
-        term_kids(srcs, SO_SOURCES);
-        term_kids(taxis, taxis_i);
+        /* Terminazione forzata */
+        free(tstats);
+        free(sources_pos);
         kill(printer, SIGTERM);
         wait(NULL);
+        term_kids(sources, SO_SOURCES);
+        term_kids(taxis, taxis_i);
         terminate();
         break;
-    
     case SIGALRM:
+#if 1
+        dprintf(STDOUT_FILENO, "%d: CHECK\n", __LINE__);
+        end_simulation();
+#else
+        free(tstats);
+        free(sources_pos);
+        kill(printer, SIGTERM);
+        wait(NULL);
+        term_kids(sources, SO_SOURCES);
+        term_kids(taxis, taxis_i);
+#endif
+        terminate();
         break;
-    
-    case SIGCHLD:
-        /*
-         * Terminazione di un figlio:
-         * - prima della simulazione : qualcosa è andato storto...
-         * - durante : taxi terminato
-         * - dopo : li devo terminare fuori, MASCHERARE IL SEGNALE
-         */
-        break;
-
     default:
         break;
     }

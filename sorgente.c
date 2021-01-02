@@ -140,9 +140,9 @@ void send_stats()
         fprintf(stderr, "%s: PID #%5d: Errore nell'apertura della coda per le statistiche.\n", __FILE__, getpid());
         exit(EXIT_FAILURE);
     }
-    if (msgctl(statsq_id, IPC_STAT, &buf) == -1) {
+    if (msgctl(msq_id, IPC_STAT, &buf) == -1) {
         TEST_ERROR;
-        fprintf(stderr, "%s: PID #%5d: Errore nella msgctl.\n", __FILE__, getpid());
+        fprintf(stderr, "%s: PID #%5d: Errore nella msgctl con IPC_STAT.\n", __FILE__, getpid());
         exit(EXIT_FAILURE);
     }
     stats.mtype = SOURCE_MTYPE;

@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
@@ -84,6 +85,10 @@ typedef struct _Request {
 #define REQ_SUCC_MTYPE 1
 #define REQ_ABRT_MTYPE 2
 #define SOURCE_MTYPE 3
+
+/* Valori possibili di exit status */
+
+#define EXIT_TAXI 3
 
 /*
  * Macro per la gestione dei semafori

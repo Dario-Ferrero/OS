@@ -53,9 +53,9 @@ int check_adj_cells(long pos);
 
 /*
  * Assegna SO_SOURCES celle in city_grid il ruolo di sorgente
- * e ne salva le posizioni nell'array puntato da sources
+ * e ne salva le posizioni nell'array sources_pos
  */
-void assign_sources(int **sources);
+void assign_sources();
 
 /*
  * Crea ed inizializza l'array di semafori, salvandone l'id in sem_id.
@@ -64,9 +64,9 @@ void init_sems();
 
 /*
  * Crea SO_SOURCES processi sorgente, passando ad ognuno una posizione nella
- * griglia tra quelle in src_pos.
+ * griglia tra quelle in sources_pos.
  */
-void create_sources(int *src_pos);
+void create_sources();
 
 /*
  * Crea n_taxis processi taxi, ognuno in una cella casuale
@@ -99,6 +99,12 @@ void handle_signal(int signum);
  * la memoria allocata dall'array
  */
 void term_kids(pid_t *kids, int nkids);
+
+/*
+ * Termina i processi figli, ne raccoglie le statistiche e
+ * stampa a terminale i risultati della simulazione
+ */
+void end_simulation();
 
 /*
  * Rilascia le risorse IPC e termina
