@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
 
     while (1) {
-        sleep(1);
+        sleep(PRINT_INTERVAL);
         SEMOP(sem_id, SEM_PRINT, 1, 0);
         print_grid_state();
         SEMOP(sem_id, SEM_PRINT, -1, 0);

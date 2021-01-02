@@ -1,6 +1,8 @@
 #ifndef __PRINTER_H__
 #define __PRINTER_H__
 
+#define PRINT_INTERVAL 1
+
 /*
  * Stampa lo stato della city_grid durante la simulazione
  */

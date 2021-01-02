@@ -1,14 +1,16 @@
 #include "common.h"
 #include "sorgente.h"
 
-int sem_id, msq_id, source_pos, reqs_rate;
+int sem_id, msq_id, source_pos;
 struct sembuf sops;
 Cell *city_grid;
 
 int main(int argc, char *argv[])
 {
-    int source_pos, shm_id;
+    int shm_id, reqs_rate;
     struct sigaction sa;
+    sigset_t sig_mask;
+    struct timespec slp_time, time_left, tmp;
     Request req;
 
     /* 
@@ -19,16 +21,16 @@ int main(int argc, char *argv[])
 
     source_pos = atoi(argv[1]);
     reqs_rate = atoi(argv[2]);
-    fprintf(stderr, "Sorgente creata! La mia posizione è : %d, reqs_rate è %d\n", source_pos, reqs_rate);
-
+    fprintf(stderr, "Sorgente creata! La mia posizione è : %4d, reqs_rate è %3d\n", source_pos, reqs_rate);
     /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
 
     /*
      * Accedere all'array di semafori per sincronizzarmi col master.
@@ -67,6 +69,9 @@ int main(int argc, char *argv[])
      * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
      */
 
+    sigemptyset(&sig_mask);
+    sigaddset(&sig_mask, SIGUSR1);
+
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
 
@@ -74,42 +79,42 @@ int main(int argc, char *argv[])
     TEST_ERROR;
 
     /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
-
+    
     while (1) {
-        /* alarm(BURST_INTERVAL); */
-        pause();
-
-        /*
-         * * Faccio partire l'alarm(1)
-         * * Attesa attiva o pause() ? (di fatto non ho nulla da fare...)
-         */
+        slp_time.tv_sec = BURST_INTERVAL;
+        slp_time.tv_nsec = 0;
+        while (nanosleep(&slp_time, &time_left) && errno == EINTR) {
+            errno = 0;
+            tmp = slp_time;
+            slp_time = time_left;
+            time_left = tmp;
+        }
+        create_requests(reqs_rate);
     }
 }
 
 void handle_signal(int signum)
 {
+    int err;
+
     switch (signum)
     {
     case SIGINT: /* Ctrl-C da terminale */
-    case SIGTERM: /* "End Process" nel manager di sistema (NO KILL) */
-        /* Terminazione forzata : free(), shmdt(), invia qualcosa al master (?)
-         * se coda propria della sorgente, inviare al master il n di richieste ancora inevase
-         * (exit status o messaggio sulla coda delle statistiche), poi rimuovi la coda
-         */
-        terminate();
-        break;
-    
-    /*
-     * PROBLEMA :
-     * Sorgente in attesa per inserimento di 1+ richieste --> arrivo di altri segnali
-     * * quali mascherare (e quali no) nell'handler ?
-     */
-    case SIGALRM:
-        /* Genera N_REQS richieste ed inseriscile nella coda */
+    case SIGTERM: /* "End Process" nel manager di sistema (NO SIGKILL) */
         terminate();
         break;
     case SIGUSR1:
         /* Genera una richiesta ed inseriscila nella coda */
+        create_requests(1);
+        break;
+    case SIGALRM:
+        /*
+         * Usarlo comunque per la terminazione a fine simulazione ?
+         * - master chiama kill(src_pid, SIGALRM)
+         * - sorgente apre la coda delle statistiche: msgget(getppid(), 0666);
+         * - invia il numero di richieste ancora sulla propria coda (IPC_STAT ?)
+         * - terminate();
+         */
         break;
     default:
         break;
@@ -128,10 +133,6 @@ void create_requests(int nreqs)
             req.dest_cell = RAND_RNG(0, GRID_SIZE-1);
         } while (IS_HOLE(city_grid[req.dest_cell]) || req.dest_cell == source_pos);
         msgsnd(msq_id, &req, MSG_LEN(req), 0);
-        TEST_ERROR;
-        if (errno == EINTR) {
-            i--;
-        }
     }
 }
 
