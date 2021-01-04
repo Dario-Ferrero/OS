@@ -5,26 +5,44 @@ int sem_id, shm_id, taxi_pos, SO_TIMEOUT, *sources_pos;
 Cell *city_grid;
 struct sembuf sops;
 TaxiStats stats;
+struct itimerval timer_init, time_left, timer_block;
 
 int main(int argc, char *argv[])
 {
     int i, cnt, dest_pos, exc_pos, SO_SOURCES;
     struct sigaction sa;
+    sigset_t sig_mask;
     Request req;
-    
-    /* Creato dal master : leggere parametri (posizione, SO_SOURCES, ???) */
+
+    /* Lettura parametri (posizione, SO_SOURCES, SO_TIMEOUT) */
 
     taxi_pos = atoi(argv[1]);
     SO_SOURCES = atoi(argv[2]);
     SO_TIMEOUT = atoi(argv[3]);
 
-    /* Assegnare handle_signal come handler per i segnali che gestisce */
+    /* Inizializzazione delle variabili */
+
+    bzero(&stats, sizeof(stats));
+    stats.mtype = REQ_SUCC_MTYPE;
+    stats.taxi_pid = getpid();
+
+    bzero(&timer_init, sizeof(timer_init));
+    timer_init.it_value.tv_sec = SO_TIMEOUT;
+    bzero(&timer_block, sizeof(timer_block));
+
+    exc_pos = -1;
+    srand(getpid() + time(NULL));
+
+    /* Assegnazione di handle_signal, sblocco di SIGALRM per i taxi di seconda generazione */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
+    sigemptyset(&sig_mask);
+    sigaddset(&sig_mask, SIGALRM);
+    sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
 
     /* Accedere alla griglia, e per ogni cella sorgente salvarne la posizione in un array */
 
@@ -49,15 +67,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /* Inizializzare le proprie variabili (es. TaxiStat) */
-
-    bzero(&stats, sizeof(stats));
-    stats.mtype = REQ_SUCC_MTYPE;
-    stats.taxi_pid = getpid();
-
-    exc_pos = -1;
-    srand(getpid() + time(NULL));
-
     /* Pronto ? Allora signal su SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
@@ -66,9 +75,9 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
-    /* Simulazione iniziata (ciclo abbastanza contorto, da pensare più in dettaglio) */
+    /* Simulazione iniziata */
 
-    alarm(SO_TIMEOUT);
+    setitimer(ITIMER_REAL, &timer_init, NULL);
 
     while (1) {
         
@@ -77,6 +86,7 @@ int main(int argc, char *argv[])
         dest_pos = closest_source(SO_SOURCES, exc_pos);
 
         /* Spostarsi su quella cella */
+
         while (taxi_pos != dest_pos) {
             taxi_pos = drive_diagonal(dest_pos);
             taxi_pos = drive_straight(dest_pos);
@@ -211,6 +221,7 @@ int circle_hole(int8_t dir, int goal)
     return taxi_pos;
 }
 
+
 int get_next(int8_t dir)
 {
     switch (dir) {
@@ -230,34 +241,28 @@ int get_next(int8_t dir)
 
 int access_cell(int dest)
 {
-    int time_left;
     struct timespec cross_time;
-    sigset_t sig_mask;
 
-    sigemptyset(&sig_mask);
-    sigaddset(&sig_mask, SIGALRM);
-
-    time_left = alarm(0);
+    setitimer(ITIMER_REAL, &timer_block, &time_left);
     SEMOP(sem_id, SEM_PRINT, 0, 0);
-    alarm(time_left);
+    setitimer(ITIMER_REAL, &time_left, NULL);
 
     SEMOP(sem_id, dest, -1, IPC_NOWAIT);
     if (errno != EAGAIN) {
         SEMOP(sem_id, taxi_pos, 1, 0);
+        taxi_pos = dest;
+
         cross_time.tv_sec = 0;
         cross_time.tv_nsec = city_grid[dest].cross_time;
         nanosleep(&cross_time, NULL);
 
-        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
+        setitimer(ITIMER_REAL, &timer_init, NULL);
+
         stats.route_time += cross_time.tv_nsec;
         stats.cells_crossed++;
         city_grid[dest].cross_n++;
-        taxi_pos = dest;
-        SEMOP(sem_id, SEM_PRINT, 0, 0);
-        alarm(SO_TIMEOUT);
-        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
     }
-    
+
     return taxi_pos;
 }
 
@@ -272,24 +277,19 @@ void handle_signal(int signum)
 
     switch (signum) {
     case SIGINT:
-    case SIGTERM:
-        /* Terminazione forzata */
+    case SIGTERM: /* Terminazione forzata */
         exit(EXIT_FAILURE);
         break;
-    case SIGALRM:
-        /* Timeout invia statistiche al master */
-        errno = 0;
+    case SIGALRM: /* Timeout: invia statistiche al master */
         if ((statsq_id = msgget(getppid(), 0600)) == -1) {
             TEST_ERROR;
             fprintf(stderr, "Errore nell'apertura della coda delle statistiche.\n");
             exit(EXIT_FAILURE);
         }
-        dprintf(STDOUT_FILENO, "%s:%d: CHECK\n", __FILE__, __LINE__);
-        do {
-            msgsnd(statsq_id, &stats, MSG_LEN(stats), 0);
+        if (msgsnd(statsq_id, &stats, MSG_LEN(stats), 0) == -1) {
             TEST_ERROR;
-        } while (errno);
-        dprintf(STDOUT_FILENO, "%s:%d: CHECK\n", __FILE__, __LINE__);
+            exit(EXIT_FAILURE);
+        }
         exit(EXIT_TAXI);
         break;
     }
