@@ -1,12 +1,6 @@
 #include "common.h"
 #include "master.h"
 
-/*
- * La griglia di Cell rappresentante la città.
- * 
- * Impostata come var. globale per potervi accedere nel signal handler
- * e ridurre le signature delle funzioni
- */
 Cell *city_grid;
 TaxiStats *tstats;
 int sem_id, shm_id, statsq_id,
@@ -24,7 +18,7 @@ int main(int argc, char *argv[])
     struct sigaction sa;
     sigset_t sig_mask;
 
-    fprintf(stderr, "Inizio lettura parametri... ");
+    fprintf(stderr, "Lettura parametri... ");
     read_params();
     fprintf(stderr, "parametri letti.\n");
 
@@ -56,7 +50,7 @@ int main(int argc, char *argv[])
     tstats_i = 0;
     tstats_size = SO_TAXI;
     tstats = (TaxiStats *)calloc(tstats_size, sizeof(*tstats));
-    fprintf(stderr, "coda creata.\n");
+    fprintf(stderr, "coda creata.\n\n");
 
     sigemptyset(&sig_mask);
     sigaddset(&sig_mask, SIGALRM);
@@ -66,7 +60,7 @@ int main(int argc, char *argv[])
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
-    fprintf(stderr, "Creazione processi sorgente...\n");
+    fprintf(stderr, "Creazione processi sorgente... ");
     create_sources();
 
     /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
@@ -74,10 +68,10 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Processi sorgente creati.\n");
-    fprintf(stderr, "\nMaster sbloccato, le sorgenti si sono inizializzate.\n");
+    fprintf(stderr, "processi sorgente creati.\n");
+    fprintf(stderr, "Master sbloccato, le sorgenti si sono inizializzate.\n");
 
-    fprintf(stderr, "\nCreazione processi taxi...\n");
+    fprintf(stderr, "\nCreazione processi taxi... ");
     taxis_i = 0;
     taxis_size = SO_TAXI;
     taxis = (int *)calloc(taxis_size, sizeof(*taxis));
@@ -88,8 +82,8 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -SO_TAXI, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Processi taxi creati.\n");
-    fprintf(stderr, "\nMaster sbloccato, i taxi si sono inizializzati.\n\n");
+    fprintf(stderr, "processi taxi creati.\n");
+    fprintf(stderr, "Master sbloccato, i taxi si sono inizializzati.\n\n");
 
     /* print_grid_values(); */
 
@@ -100,6 +94,8 @@ int main(int argc, char *argv[])
 
     SEMOP(sem_id, SEM_KIDS, -1, 0);
     TEST_ERROR;
+
+    fprintf(stderr, "Processo printer creato.\n");
 
     dprintf(STDOUT_FILENO, "Processi figli creati, può partire la simulazione!\n\n");
     dprintf(STDOUT_FILENO, "I Process ID delle sorgenti sono osservabili:\n");
@@ -113,40 +109,27 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
 
-#if 1
     alarm(SO_DURATION);
+
     /* Ciclo di simulazione */
+
     while ((child_pid = wait(&status)) != -1) {
         if (WEXITSTATUS(status) != EXIT_TAXI) {
             fprintf(stderr, "Un processo figlio diverso da un taxi è terminato inaspettatamente.\n");
             raise(SIGINT);
-        } 
+        }
         while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
-                SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
+                        SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
             sigprocmask(SIG_BLOCK, &sig_mask, NULL);
             if (tstats_i >= tstats_size-1) {
                 tstats_size <<= 1;
                 tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
             }
             tstats_i++;
+            create_taxis(1);
             sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
         }
-        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
-        create_taxis(1);
-        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
     }
-#else
-
-    while ((child_pid = wait(&status)) != -1) {
-        fprintf(stderr, "Child #%d terminated with exit status %d\n", child_pid, WEXITSTATUS(status));
-    }
-
-    free(sources);
-    free(taxis);
-    free(tstats);
-    free(sources_pos);
-    terminate();
-#endif
 }
 
 
@@ -476,8 +459,8 @@ void end_simulation()
     SourceStats src_stat;
 
     SEMOP(sem_id, SEM_PRINT, 0, 0);
-    kill(printer, SIGINT);
-    wait(NULL);
+    kill(printer, SIGTERM);
+    waitpid(printer, NULL, 0);
     SEMOP(sem_id, SEM_PRINT, 1, 0);
 
     req_succ = req_unpicked = req_abrt = 0;
@@ -485,27 +468,40 @@ void end_simulation()
         kill(sources[i], SIGALRM);
     }
 
+    dprintf(STDOUT_FILENO, "%s:%d: Raccolta statistiche sorgenti\n", __FILE__, __LINE__);
     child_cnt = SO_SOURCES;
     while (child_cnt-- && msgrcv(statsq_id, &src_stat, MSG_LEN(src_stat), SOURCE_MTYPE, 0) != -1) {
         dprintf(STDOUT_FILENO, "%d: CHECK #%d\n", __LINE__, child_cnt);
         req_unpicked += src_stat.reqs_unpicked;
     }
+    dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats sorgenti.\n", __FILE__, __LINE__);
     while (waitpid(-1, NULL, WNOHANG) != 0);
 
-    for (i = 0; i < taxis_i; i++) {
-        kill(taxis[i], SIGALRM);
-    }
-    child_cnt = taxis_i - tstats_i;
-    while (child_cnt-- && msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
-            SOURCE_MTYPE, MSG_EXCEPT) != -1) {
-        dprintf(STDOUT_FILENO, "%d: CHECK #%d\n", __LINE__, child_cnt);
-        if (tstats_i >= tstats_size-1) {
-            tstats_size <<= 1;
-            tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
+
+    child_cnt = semctl(sem_id, SEM_KIDS, GETVAL);
+    dprintf(STDOUT_FILENO, "%s:%d: Taxi di seconda generazione = %d\n", __FILE__, __LINE__, child_cnt);
+    dprintf(STDOUT_FILENO, "%s:%d: Raccolta statistiche taxi\n", __FILE__, __LINE__);
+    for (i = 0, child_cnt = 0; i < taxis_i; i++) {
+        if (kill(taxis[i], SIGALRM) == 0) {
+            child_cnt++;
         }
-        tstats_i++;
     }
-    while (wait(NULL) != -1);
+    PRINT_INT(taxis_i);
+    PRINT_INT(tstats_i);
+    PRINT_INT(child_cnt);
+    do {
+        while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
+            SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
+            dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt--);
+            if (tstats_i >= tstats_size-1) {
+                tstats_size <<= 1;
+                tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
+            }
+            tstats_i++;
+        }
+    } while (wait(NULL) != -1);
+    dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats taxi.\n", __FILE__, __LINE__);
+
 
     for (i = 0; i < taxis_i; i++) {
         if (tstats[i].mtype == REQ_ABRT_MTYPE) {
@@ -535,23 +531,13 @@ void handle_signal(int signum)
         free(tstats);
         free(sources_pos);
         kill(printer, SIGTERM);
-        wait(NULL);
+        waitpid(printer, NULL, WNOHANG);
         term_kids(sources, SO_SOURCES);
         term_kids(taxis, taxis_i);
         terminate();
         break;
     case SIGALRM:
-#if 1
-        dprintf(STDOUT_FILENO, "%d: CHECK\n", __LINE__);
         end_simulation();
-#else
-        free(tstats);
-        free(sources_pos);
-        kill(printer, SIGTERM);
-        wait(NULL);
-        term_kids(sources, SO_SOURCES);
-        term_kids(taxis, taxis_i);
-#endif
         terminate();
         break;
     default:

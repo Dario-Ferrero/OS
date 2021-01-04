@@ -1,8 +1,6 @@
 #ifndef __MASTER_H__
 #define __MASTER_H__
 
-#include <sys/types.h> /* Per il pid_t nella dichiarazione di term_kids */
-
 #define PARAMS_FILE "test.conf"
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10

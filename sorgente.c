@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 
     source_pos = atoi(argv[1]);
     reqs_rate = atoi(argv[2]);
-    fprintf(stderr, "Sorgente creata! La mia posizione è : %4d, reqs_rate è %3d\n", source_pos, reqs_rate);
+
     /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
 
     bzero(&sa, sizeof(sa));
@@ -32,18 +32,14 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
 
-    /*
-     * Accedere all'array di semafori per sincronizzarmi col master.
-     */
+    /* Accedere all'array di semafori per sincronizzarmi col master. */
 
     if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
 
-    /*
-     * Accedere alla mia coda di messaggi per le richieste
-     */
+    /* Accedere alla mia coda di messaggi per le richieste */
 
     if ((msq_id = msgget(IPC_PRIVATE, 0666)) == -1) {
         TEST_ERROR;
@@ -65,9 +61,7 @@ int main(int argc, char *argv[])
     srand(getpid() + time(NULL));
     create_requests(reqs_rate);
 
-    /*
-     * Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START
-     */
+    /* Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START */
 
     sigemptyset(&sig_mask);
     sigaddset(&sig_mask, SIGUSR1);
@@ -79,7 +73,7 @@ int main(int argc, char *argv[])
     TEST_ERROR;
 
     /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
-    
+
     while (1) {
         slp_time.tv_sec = BURST_INTERVAL;
         slp_time.tv_nsec = 0;
