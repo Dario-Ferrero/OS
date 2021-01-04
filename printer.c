@@ -9,16 +9,14 @@ int main(int argc, char *argv[])
 {
     struct sigaction sa;
 
-    /* Creato dal master, deve leggere parametri (?) */
-
-    fprintf(stderr, "Processo printer creato!\n");
-
     /* Gestire maschere e segnali */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
+
+    setvbuf(stdout, NULL, _IOFBF, 0);
 
     /* Accedere all'array di semafori */
 
@@ -41,7 +39,10 @@ int main(int argc, char *argv[])
     /* Finito inizializzazione, può partire la simulazione */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
+    TEST_ERROR;
+
     SEMOP(sem_id, SEM_START, 0, 0);
+    TEST_ERROR;
 
     while (1) {
         sleep(PRINT_INTERVAL);
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
         print_grid_state();
         SEMOP(sem_id, SEM_PRINT, -1, 0);
     }
-    
+
     shmdt(city_grid);
 }
 
@@ -58,44 +59,44 @@ void print_grid_state()
 {
     int x, y, n_taxi;
 
-    fprintf(stderr, "\n\n\n       ");
+    printf("\n\n\n       ");
     for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "%d ", x % 10);
+        printf("%d ", x % 10);
     }
-    fprintf(stderr, "\n      ");
+    printf("\n      ");
     for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
+        printf("--");
     }
-    fprintf(stderr, "-\n");
+    printf("-\n");
 
     for (y = 0; y < SO_HEIGHT; y++) {
-        fprintf(stderr, " %3d | ", y);
+        printf(" %3d | ", y);
         for (x = 0; x < SO_WIDTH; x++) {
             n_taxi = city_grid[INDEX(x, y)].capacity -
                      semctl(sem_id, INDEX(x, y), GETVAL);
             TEST_ERROR;
             if (IS_HOLE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, ANSI_RED"H "ANSI_RESET);
+                printf(ANSI_RED"H "ANSI_RESET);
             } else if (n_taxi) {
                 if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                    fprintf(stderr, ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
+                    printf(ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
                 } else {
-                    fprintf(stderr, "%d ", n_taxi);
+                    printf("%d ", n_taxi);
                 }
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, ANSI_YELLOW"S "ANSI_RESET);
+                printf(ANSI_YELLOW"S "ANSI_RESET);
             } else {
-                fprintf(stderr, "%c ", (char)96);
+                printf("%c ", (char)96);
             }
         }
-        fprintf(stderr, "|\n");
+        printf("|\n");
     }
-
-    fprintf(stderr, "      ");
+    printf("      ");
     for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
+        printf("--");
     }
-    fprintf(stderr, "-\n\n\n");
+    printf("-\n\n\n");
+    fflush(stdout);
 }
 
 
