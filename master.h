@@ -105,6 +105,12 @@ void term_kids(pid_t *kids, int nkids);
 void end_simulation();
 
 /*
+ * Stampa i process id dei tre singoli taxi che hanno attraversato più celle,
+ * viaggiato più a lungo e soddisfatto più richieste.
+ */
+void print_best_taxis();
+
+/*
  * Rilascia le risorse IPC e termina
  */
 void terminate();

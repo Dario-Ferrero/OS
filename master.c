@@ -456,6 +456,7 @@ void end_simulation()
 {
     int i, child_cnt;
     long req_succ, req_unpicked, req_abrt;
+    pid_t *best_taxis;
     SourceStats src_stat;
 
     SEMOP(sem_id, SEM_PRINT, 0, 0);
@@ -471,7 +472,7 @@ void end_simulation()
     dprintf(STDOUT_FILENO, "%s:%d: Raccolta statistiche sorgenti\n", __FILE__, __LINE__);
     child_cnt = SO_SOURCES;
     while (child_cnt-- && msgrcv(statsq_id, &src_stat, MSG_LEN(src_stat), SOURCE_MTYPE, 0) != -1) {
-        dprintf(STDOUT_FILENO, "%d: CHECK #%d\n", __LINE__, child_cnt);
+        /*dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt);*/
         req_unpicked += src_stat.reqs_unpicked;
     }
     dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats sorgenti.\n", __FILE__, __LINE__);
@@ -489,10 +490,11 @@ void end_simulation()
     PRINT_INT(taxis_i);
     PRINT_INT(tstats_i);
     PRINT_INT(child_cnt);
+    child_cnt = 0;
     do {
         while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
             SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
-            dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt--);
+            /*dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt++);*/
             if (tstats_i >= tstats_size-1) {
                 tstats_size <<= 1;
                 tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
@@ -501,7 +503,6 @@ void end_simulation()
         }
     } while (wait(NULL) != -1);
     dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats taxi.\n", __FILE__, __LINE__);
-
 
     for (i = 0; i < taxis_i; i++) {
         if (tstats[i].mtype == REQ_ABRT_MTYPE) {
@@ -514,11 +515,42 @@ void end_simulation()
     dprintf(STDOUT_FILENO, "# Richieste completate con successo %ld\n", req_succ);
     dprintf(STDOUT_FILENO, "# Richieste inevase %ld\n", req_unpicked);
     dprintf(STDOUT_FILENO, "# Richieste abortite %ld\n\n", req_abrt);
+    print_best_taxis();
 
     free(taxis);
     free(sources);
     free(tstats);
     free(sources_pos);
+}
+
+
+void print_best_taxis()
+{
+    int i;
+    pid_t *best_taxis;
+    long max_cells, max_time, max_reqs;
+
+    best_taxis = (pid_t *)calloc(3, sizeof(*best_taxis));
+    max_cells = max_time = max_reqs = 0;
+    for (i = 0; i < tstats_i; i++) {
+        if (tstats[i].cells_crossed > max_cells) {
+            max_cells = tstats[i].cells_crossed;
+            best_taxis[0] = tstats[i].taxi_pid;
+        }
+        if (tstats[i].route_time > max_time) {
+            max_time = tstats[i].route_time;
+            best_taxis[1] = tstats[i].taxi_pid;
+        }
+        if (tstats[i].reqs_compl > max_reqs) {
+            max_reqs = tstats[i].reqs_compl;
+            best_taxis[2] = tstats[i].taxi_pid;
+        }
+    }
+
+    dprintf(STDOUT_FILENO, "Taxi che ha attraversato più celle (%ld) : %5d\n", max_cells, best_taxis[0]);
+    dprintf(STDOUT_FILENO, "Taxi che ha viaggiato più a lungo (%ld nsecs) : %5d\n", max_time, best_taxis[1]);
+    dprintf(STDOUT_FILENO, "Taxi che ha soddisfatto più richieste (%ld) : %5d\n\n", max_reqs, best_taxis[2]);
+    free(best_taxis);
 }
 
 
