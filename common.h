@@ -65,8 +65,8 @@ typedef struct _Request {
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  20
-#define SO_HEIGHT 10
+#define SO_WIDTH  60
+#define SO_HEIGHT 20
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)
@@ -86,6 +86,7 @@ typedef struct _Request {
 #define REQ_SUCC_MTYPE 1
 #define REQ_ABRT_MTYPE 2
 #define SOURCE_MTYPE 3
+#define MSG_LEN(msg) (sizeof(msg) - sizeof((msg).mtype))
 
 /* Valori possibili di exit status */
 
@@ -112,7 +113,9 @@ typedef struct _Request {
 
 #define TRUE  1
 #define FALSE 0
-#define MSG_LEN(msg) (sizeof(msg) - sizeof(msg.mtype))
+#define SWAP(a, b, tmp)  tmp = a; 	\
+						 a = b;	  	\
+						 b = tmp;
 
 /*
  * Genera un intero casualmente incluso tra a e b
@@ -124,7 +127,9 @@ typedef struct _Request {
  */
 
 #define ANSI_YELLOW "\x1b[33m"
-#define ANSI_RED "\x1b[31m"
-#define ANSI_RESET "\x1b[0m"
+#define ANSI_RED 	"\x1b[31m"
+#define ANSI_GREEN  "\x1b[32m"
+#define ANSI_CYAN   "\x1b[36m"
+#define ANSI_RESET 	"\x1b[0m"
 
 #endif /* __COMMON_H__ */

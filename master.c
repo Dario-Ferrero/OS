@@ -109,27 +109,10 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
 
-    alarm(SO_DURATION);
-
     /* Ciclo di simulazione */
 
-    while ((child_pid = wait(&status)) != -1) {
-        if (WEXITSTATUS(status) != EXIT_TAXI) {
-            fprintf(stderr, "Un processo figlio diverso da un taxi è terminato inaspettatamente.\n");
-            raise(SIGINT);
-        }
-        while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
-                        SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
-            sigprocmask(SIG_BLOCK, &sig_mask, NULL);
-            if (tstats_i >= tstats_size-1) {
-                tstats_size <<= 1;
-                tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
-            }
-            tstats_i++;
-            create_taxis(1);
-            sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
-        }
-    }
+    alarm(SO_DURATION);
+    collect_taxi_stats(1);
 }
 
 
@@ -443,11 +426,11 @@ void print_grid_values()
     long i;
 
     for (i = 0; i < GRID_SIZE; i++) {
-        fprintf(stderr, "city_grid[%3ld].cross_time = %ld\n", i, city_grid[i].cross_time);
-        fprintf(stderr, "city_grid[%3ld].msq_id = %d\n", i, city_grid[i].msq_id);
-        fprintf(stderr, "city_grid[%3ld].cross_n = %d\n", i, city_grid[i].cross_n);
-        fprintf(stderr, "city_grid[%3ld].capacity = %d\n", i, city_grid[i].capacity);
-        fprintf(stderr, "city_grid[%3ld].flags = %u\n\n", i, city_grid[i].flags);
+        fprintf(stderr, "city_grid[%5ld].cross_time = %ld\n", i, city_grid[i].cross_time);
+        fprintf(stderr, "city_grid[%5ld].msq_id = %d\n", i, city_grid[i].msq_id);
+        fprintf(stderr, "city_grid[%5ld].cross_n = %d\n", i, city_grid[i].cross_n);
+        fprintf(stderr, "city_grid[%5ld].capacity = %d\n", i, city_grid[i].capacity);
+        fprintf(stderr, "city_grid[%5ld].flags = %u\n\n", i, city_grid[i].flags);
     }
 }
 
@@ -491,17 +474,8 @@ void end_simulation()
     PRINT_INT(tstats_i);
     PRINT_INT(child_cnt);
     child_cnt = 0;
-    do {
-        while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(tstats[0]),
-            SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
-            /*dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt++);*/
-            if (tstats_i >= tstats_size-1) {
-                tstats_size <<= 1;
-                tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
-            }
-            tstats_i++;
-        }
-    } while (wait(NULL) != -1);
+
+    collect_taxi_stats(0);
     dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats taxi.\n", __FILE__, __LINE__);
 
     for (i = 0; i < taxis_i; i++) {
@@ -510,17 +484,45 @@ void end_simulation()
         }
         req_succ += tstats[i].reqs_compl;
     }
-
     dprintf(STDOUT_FILENO, "Simulazione Terminata.\n\n");
     dprintf(STDOUT_FILENO, "# Richieste completate con successo %ld\n", req_succ);
     dprintf(STDOUT_FILENO, "# Richieste inevase %ld\n", req_unpicked);
     dprintf(STDOUT_FILENO, "# Richieste abortite %ld\n\n", req_abrt);
+
     print_best_taxis();
+
+    print_final_grid();
 
     free(taxis);
     free(sources);
     free(tstats);
     free(sources_pos);
+}
+
+
+void collect_taxi_stats(int ntaxis)
+{
+    int status;
+    sigset_t sig_mask;
+
+    sigemptyset(&sig_mask);
+    sigaddset(&sig_mask, SIGALRM);
+
+    do {
+        while (msgrcv(statsq_id, &(tstats[tstats_i]), MSG_LEN(*tstats),
+                        SOURCE_MTYPE, MSG_EXCEPT | IPC_NOWAIT) != -1) {
+            sigprocmask(SIG_BLOCK, &sig_mask, NULL);
+            if (tstats_i >= tstats_size-1) {
+                tstats_size <<= 1;
+                tstats = (TaxiStats *)realloc(tstats, tstats_size * sizeof(*tstats));
+            }
+            tstats_i++;
+            if (ntaxis > 0) {
+                create_taxis(ntaxis);
+            }
+            sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
+        }
+    } while (wait(NULL) != -1);
 }
 
 
@@ -551,6 +553,78 @@ void print_best_taxis()
     dprintf(STDOUT_FILENO, "Taxi che ha viaggiato più a lungo (%ld nsecs) : %5d\n", max_time, best_taxis[1]);
     dprintf(STDOUT_FILENO, "Taxi che ha soddisfatto più richieste (%ld) : %5d\n\n", max_reqs, best_taxis[2]);
     free(best_taxis);
+}
+
+
+void get_top_cells(int **top_cells)
+{
+    int i, j, tmp, *cell_cnt;
+
+    *top_cells = (int *)calloc(SO_TOP_CELLS+1, sizeof(**top_cells));
+    cell_cnt = (int *)calloc(SO_TOP_CELLS+1, sizeof(*cell_cnt));
+
+    for (i = 0; i < GRID_SIZE; i++) {
+        (*top_cells)[SO_TOP_CELLS] = i;
+        cell_cnt[SO_TOP_CELLS] = city_grid[i].cross_n;
+        for (j = SO_TOP_CELLS; j >= 1 && cell_cnt[j-1] < cell_cnt[j]; j--) {
+            SWAP(cell_cnt[j], cell_cnt[j-1], tmp);
+            SWAP((*top_cells)[j], (*top_cells)[j-1], tmp);
+        }
+    }
+
+    free(cell_cnt);
+}
+
+
+void print_final_grid()
+{
+    int i, x, y, *top_cells;
+    int8_t top;
+
+    get_top_cells(&top_cells);
+
+    for (i = 0; i < SO_TOP_CELLS; i++) {
+        dprintf(STDOUT_FILENO, "Top cell #%2d: city_grid[%5d]\n", i+1, top_cells[i]);
+    }
+
+    printf("\n\n\n       ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        printf("%d ", x % 10);
+    }
+    printf("\n      ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        printf("--");
+    }
+    printf("-\n");
+
+    for (y = 0; y < SO_HEIGHT; y++) {
+        printf(" %3d | ", y);
+        for (x = 0; x < SO_WIDTH; x++) {
+            top = FALSE;
+            for (i = 0; i < SO_TOP_CELLS; i++) {
+                if (top_cells[i] == INDEX(x, y)) {
+                    top = TRUE;
+                    break;
+                }
+            }
+            if (top) {
+                printf(ANSI_GREEN"T "ANSI_RESET);
+            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
+                printf(ANSI_YELLOW"S "ANSI_RESET);
+            } else {
+                printf("%c ", (char)96);
+            }
+        }
+        printf("|\n");
+    }
+    printf("      ");
+    for (x = 0; x < SO_WIDTH; x++) {
+        printf("--");
+    }
+    printf("-\n\n\n");
+
+    
+    free(top_cells);
 }
 
 

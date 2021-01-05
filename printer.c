@@ -74,14 +74,13 @@ void print_grid_state()
         for (x = 0; x < SO_WIDTH; x++) {
             n_taxi = city_grid[INDEX(x, y)].capacity -
                      semctl(sem_id, INDEX(x, y), GETVAL);
-            TEST_ERROR;
             if (IS_HOLE(city_grid[INDEX(x, y)])) {
                 printf(ANSI_RED"H "ANSI_RESET);
             } else if (n_taxi) {
                 if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                     printf(ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
                 } else {
-                    printf("%d ", n_taxi);
+                    printf(ANSI_CYAN"%d "ANSI_RESET, n_taxi);
                 }
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                 printf(ANSI_YELLOW"S "ANSI_RESET);

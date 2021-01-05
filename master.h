@@ -83,7 +83,8 @@ void create_printer();
 void print_grid_values();
 
 /*
- * Stampa a terminale la city_grid
+ * Stampa a terminale lo stato di occupazione della city_grid,
+ * mostrandone le celle inaccessibili e le celle sorgente.
  */
 void print_grid();
 
@@ -105,10 +106,23 @@ void term_kids(pid_t *kids, int nkids);
 void end_simulation();
 
 /*
+ * Raccoglie nell'array tstats le statistiche inviate dai taxi terminati.
+ * Se il valore di ntaxi è positivo, per ogni statistica raccolta
+ * è creato un nuovo processo taxi.
+ */
+void collect_taxi_stats(int ntaxis);
+
+/*
  * Stampa i process id dei tre singoli taxi che hanno attraversato più celle,
  * viaggiato più a lungo e soddisfatto più richieste.
  */
 void print_best_taxis();
+
+/*
+ * Calcola le SO_TOP_CELLS celle più attraversate e stampa la griglia
+ * con evidenziate queste più le celle sorgenti.
+ */
+void print_final_grid();
 
 /*
  * Rilascia le risorse IPC e termina
