@@ -1,5 +1,6 @@
 #include "common.h"
 #include "master.h"
+#include "gridprint.h"
 
 Cell *city_grid;
 TaxiStats *tstats;
@@ -30,13 +31,13 @@ int main(int argc, char *argv[])
     init_city_grid();
     fprintf(stderr, "Griglia inizializzata\n");
 
-    print_grid();
+    print_initial_grid(city_grid);
 
     fprintf(stderr, "Assegnamento celle sorgente... ");
     assign_sources();
     fprintf(stderr, "celle sorgente assegnate.\n");
 
-    print_grid();
+    print_initial_grid(city_grid);
 
     fprintf(stderr, "Inizializzazione semafori... ");
     init_sems();
@@ -385,42 +386,6 @@ void create_printer()
 }
 
 
-void print_grid()
-{
-    int x, y;
-
-    fprintf(stderr, "\n\n\n     ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "%d ", x % 10);
-    }
-    fprintf(stderr, "\n    ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
-    }
-    fprintf(stderr, "-\n");
-
-    for (y = 0; y < SO_HEIGHT; y++) {
-        fprintf(stderr, " %d | ", y % 10);
-        for (x = 0; x < SO_WIDTH; x++) {
-            if (IS_HOLE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "H ");
-            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                fprintf(stderr, "S ");
-            } else {
-                fprintf(stderr, "%c ", (char)96);
-            }
-        }
-        fprintf(stderr, "|\n");
-    }
-
-    fprintf(stderr, "    ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        fprintf(stderr, "--");
-    }
-    fprintf(stderr, "-\n\n\n");
-}
-
-
 void print_grid_values()
 {
     long i;
@@ -437,7 +402,7 @@ void print_grid_values()
 
 void end_simulation()
 {
-    int i, child_cnt;
+    int i, child_cnt, *top_cells;
     long req_succ, req_unpicked, req_abrt;
     pid_t *best_taxis;
     SourceStats src_stat;
@@ -491,8 +456,13 @@ void end_simulation()
 
     print_best_taxis();
 
-    print_final_grid();
+    get_top_cells(&top_cells);
+    for (i = 0; i < SO_TOP_CELLS; i++) {
+        printf("Top cell #%2d: city_grid[%5d]\n", i+1, top_cells[i]);
+    }
+    print_final_grid(city_grid, top_cells, SO_TOP_CELLS);
 
+    free(top_cells);
     free(taxis);
     free(sources);
     free(tstats);
@@ -573,58 +543,6 @@ void get_top_cells(int **top_cells)
     }
 
     free(cell_cnt);
-}
-
-
-void print_final_grid()
-{
-    int i, x, y, *top_cells;
-    int8_t top;
-
-    get_top_cells(&top_cells);
-
-    for (i = 0; i < SO_TOP_CELLS; i++) {
-        dprintf(STDOUT_FILENO, "Top cell #%2d: city_grid[%5d]\n", i+1, top_cells[i]);
-    }
-
-    printf("\n\n\n       ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("%d ", x % 10);
-    }
-    printf("\n      ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("--");
-    }
-    printf("-\n");
-
-    for (y = 0; y < SO_HEIGHT; y++) {
-        printf(" %3d | ", y);
-        for (x = 0; x < SO_WIDTH; x++) {
-            top = FALSE;
-            for (i = 0; i < SO_TOP_CELLS; i++) {
-                if (top_cells[i] == INDEX(x, y)) {
-                    top = TRUE;
-                    break;
-                }
-            }
-            if (top) {
-                printf(ANSI_GREEN"T "ANSI_RESET);
-            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                printf(ANSI_YELLOW"S "ANSI_RESET);
-            } else {
-                printf("%c ", (char)96);
-            }
-        }
-        printf("|\n");
-    }
-    printf("      ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("--");
-    }
-    printf("-\n\n\n");
-
-    
-    free(top_cells);
 }
 
 

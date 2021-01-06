@@ -79,14 +79,10 @@ void create_printer();
 
 /*
  * Stampa a terminale, per ogni cella di city_grid, il valore dei suoi campi
+ * 
+ * DA RIMUOVERE O FAR DIVENTARE MACRO DI DEBUG.
  */
 void print_grid_values();
-
-/*
- * Stampa a terminale lo stato di occupazione della city_grid,
- * mostrandone le celle inaccessibili e le celle sorgente.
- */
-void print_grid();
 
 /*
  * Signal handler per il processo
@@ -118,11 +114,7 @@ void collect_taxi_stats(int ntaxis);
  */
 void print_best_taxis();
 
-/*
- * Calcola le SO_TOP_CELLS celle più attraversate e stampa la griglia
- * con evidenziate queste più le celle sorgenti.
- */
-void print_final_grid();
+void get_top_cells(int **top_cells);
 
 /*
  * Rilascia le risorse IPC e termina

@@ -1,5 +1,6 @@
 #include "common.h"
 #include "printer.h"
+#include "gridprint.h"
 
 Cell *city_grid;
 int sem_id, shm_id;
@@ -18,14 +19,14 @@ int main(int argc, char *argv[])
 
     setvbuf(stdout, NULL, _IOFBF, 0);
 
-    /* Accedere all'array di semafori */
+    /* Accesso all'array di semafori */
 
     if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
 
-    /* Accedere alla griglia di celle */
+    /* Accesso alla griglia di celle */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -34,7 +35,7 @@ int main(int argc, char *argv[])
     city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
 
-    print_grid_state();
+    print_grid_state(sem_id, city_grid);
 
     /* Finito inizializzazione, può partire la simulazione */
 
@@ -47,55 +48,9 @@ int main(int argc, char *argv[])
     while (1) {
         sleep(PRINT_INTERVAL);
         SEMOP(sem_id, SEM_PRINT, 1, 0);
-        print_grid_state();
+        print_grid_state(sem_id, city_grid);
         SEMOP(sem_id, SEM_PRINT, -1, 0);
     }
-
-    shmdt(city_grid);
-}
-
-
-void print_grid_state()
-{
-    int x, y, n_taxi;
-
-    printf("\n\n\n       ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("%d ", x % 10);
-    }
-    printf("\n      ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("--");
-    }
-    printf("-\n");
-
-    for (y = 0; y < SO_HEIGHT; y++) {
-        printf(" %3d | ", y);
-        for (x = 0; x < SO_WIDTH; x++) {
-            n_taxi = city_grid[INDEX(x, y)].capacity -
-                     semctl(sem_id, INDEX(x, y), GETVAL);
-            if (IS_HOLE(city_grid[INDEX(x, y)])) {
-                printf(ANSI_RED"H "ANSI_RESET);
-            } else if (n_taxi) {
-                if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                    printf(ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
-                } else {
-                    printf(ANSI_CYAN"%d "ANSI_RESET, n_taxi);
-                }
-            } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
-                printf(ANSI_YELLOW"S "ANSI_RESET);
-            } else {
-                printf("%c ", (char)96);
-            }
-        }
-        printf("|\n");
-    }
-    printf("      ");
-    for (x = 0; x < SO_WIDTH; x++) {
-        printf("--");
-    }
-    printf("-\n\n\n");
-    fflush(stdout);
 }
 
 

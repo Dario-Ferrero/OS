@@ -1,21 +1,14 @@
 #ifndef __PRINTER_H__
 #define __PRINTER_H__
 
-#define PRINT_INTERVAL 1
-
 /*
- * Stampa lo stato della city_grid durante la simulazione
+ * Signal handler per il processo
  */
-void print_grid_state();
+void handle_signal(int signum);
 
 /*
  * Terminazione forzata : rilascia le risorse
  */
 void terminate();
-
-/*
- * Signal handler per il processo
- */
-void handle_signal(int signum);
 
 #endif /* __PRINTER_H__ */
