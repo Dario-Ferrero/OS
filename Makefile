@@ -18,6 +18,7 @@ printer : src/printer.c out/gridprint.o lib/printer.h lib/common.h Makefile
 	$(CC) $(CFLAGS) src/printer.c out/gridprint.o -o out/printer
 
 gridprint.o : src/gridprint.c lib/gridprint.h lib/common.h Makefile
+	if [ ! -d "./out/" ]; then mkdir out/; fi
 	$(CC) $(CFLAGS) -c src/gridprint.c -o out/gridprint.o
 
 clear :

@@ -1,7 +1,3 @@
-*.o
 *.txt
-master
-sorgente
-taxi
-printer
 scratch*
+out/
