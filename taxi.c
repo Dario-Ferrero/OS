@@ -214,23 +214,6 @@ void circle_hole(int8_t dir, int goal)
 }
 
 
-int get_next(int8_t dir)
-{
-    switch (dir) {
-        case GO_UP:
-            return UP(taxi_pos);
-        case GO_DOWN:
-            return DOWN(taxi_pos);
-        case GO_LEFT:
-            return LEFT(taxi_pos);
-        case GO_RIGHT:
-            return RIGHT(taxi_pos);
-        default:
-            return -1;
-    }
-}
-
-
 void access_cell(int dest, int8_t dir)
 {
     int8_t back_dir;

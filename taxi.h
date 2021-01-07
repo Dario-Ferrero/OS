@@ -79,11 +79,6 @@ void drive_straight(int goal);
 void circle_hole(int8_t dir, int goal);
 
 /*
- * Ritorna la posizione, rispetto a taxi_pos, della cella in direzione dir.
- */
-int get_next(int8_t dir);
-
-/*
  * Sposta il taxi dalla cella taxi_pos alla cella adiacente dest situata
  * in direzione dir. Se lo spostamento è avvenuto con successo,
  * il valore di taxi_pos è aggiornato a dest.
