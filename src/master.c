@@ -13,8 +13,7 @@ struct sembuf sops;
 
 int main(int argc, char *argv[])
 {
-    pid_t child_pid;
-    int i, status, pos;
+    int i;
     struct sigaction sa;
 
     dprintf(STDOUT_FILENO, "Lettura parametri... ");
@@ -333,16 +332,11 @@ void create_taxis(int n_taxis)
             srand(getpid() + time(NULL));
             while (pos < 0) {
                 pos = RAND_RNG(0, GRID_SIZE-1);
-                /*i = semctl(sem_id, pos, GETVAL);*/
-                /*if (i > 0) {*/
-                    SEMOP(sem_id, pos, -1, IPC_NOWAIT);
-                    if (errno == EAGAIN) {
-                        errno = 0;
-                        pos = -1;
-                    }/*
-                } else {
+                SEMOP(sem_id, pos, -1, IPC_NOWAIT);
+                if (errno == EAGAIN) {
+                    errno = 0;
                     pos = -1;
-                }*/
+                }
             }
             sprintf(pos_buf, "%d", pos);
             taxi_args[1] = pos_buf;
@@ -387,39 +381,40 @@ void end_simulation()
 {
     int i, child_cnt, *top_cells;
     long req_succ, req_unpicked, req_abrt;
-    pid_t *best_taxis;
     SourceStats src_stat;
+
 
     SEMOP(sem_id, SEM_PRINT, 0, 0);
     kill(printer, SIGTERM);
     waitpid(printer, NULL, 0);
     SEMOP(sem_id, SEM_PRINT, 1, 0);
 
+    dprintf(STDOUT_FILENO, "Simulazione terminata.\n");
+    dprintf(STDOUT_FILENO, "Raccolta statistiche sorgenti... ");
     req_succ = req_unpicked = req_abrt = 0;
     for (i = 0; i < SO_SOURCES; i++) {
         kill(sources[i], SIGALRM);
     }
-
-    dprintf(STDOUT_FILENO, "Simulazione terminata.\n");
-    dprintf(STDOUT_FILENO, "Raccolta statistiche sorgenti... ");
     child_cnt = SO_SOURCES;
     while (child_cnt-- && msgrcv(statsq_id, &src_stat, MSG_LEN(src_stat), SOURCE_MTYPE, 0) != -1) {
         req_unpicked += src_stat.reqs_unpicked;
     }
-    dprintf(STDOUT_FILENO, "completata.\n\n");
     for (i = 0; i < SO_SOURCES; i++) {
         waitpid(sources[i], NULL, 0);
     }
+    dprintf(STDOUT_FILENO, "completata.\n\n");
 
-    child_cnt = semctl(sem_id, SEM_KIDS, GETVAL);
-    dprintf(STDOUT_FILENO, "Taxi di prima generazione = %d\n", SO_TAXI);
-    dprintf(STDOUT_FILENO, "Taxi di seconda generazione = %d\n", child_cnt);
+
     dprintf(STDOUT_FILENO, "Raccolta statistiche taxi... ");
-    for (i = 0, child_cnt = 0; i < taxis_i; i++) {
+    for (i = 0; i < taxis_i; i++) {
         kill(taxis[i], SIGALRM);
     }
     collect_taxi_stats(0);
-    dprintf(STDOUT_FILENO, "completata.\n\n");
+    dprintf(STDOUT_FILENO, "completata.\n");
+    child_cnt = semctl(sem_id, SEM_KIDS, GETVAL);
+    dprintf(STDOUT_FILENO, "Taxi di prima generazione = %d\n", SO_TAXI);
+    dprintf(STDOUT_FILENO, "Taxi di seconda generazione = %d\n\n", child_cnt);
+
 
     for (i = 0; i < taxis_i; i++) {
         if (tstats[i].mtype == REQ_ABRT_MTYPE) {
@@ -427,10 +422,10 @@ void end_simulation()
         }
         req_succ += tstats[i].reqs_compl;
     }
-
     dprintf(STDOUT_FILENO, "# Richieste completate con successo: %ld\n", req_succ);
     dprintf(STDOUT_FILENO, "# Richieste inevase: %ld\n", req_unpicked);
     dprintf(STDOUT_FILENO, "# Richieste abortite: %ld\n\n", req_abrt);
+
 
     print_best_taxis();
 
@@ -448,7 +443,6 @@ void end_simulation()
 
 void collect_taxi_stats(int ntaxis)
 {
-    int status;
     sigset_t sig_mask;
 
     sigemptyset(&sig_mask);
@@ -531,8 +525,7 @@ void handle_signal(int signum)
 {
     switch (signum) {
     case SIGTERM:
-    case SIGINT:
-        /* Terminazione forzata */
+    case SIGINT: /* Terminazione forzata */
         free(tstats);
         free(sources_pos);
         kill(printer, SIGTERM);

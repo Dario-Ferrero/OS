@@ -96,10 +96,6 @@ typedef struct _Request {
 #define SOURCE_MTYPE 3
 #define MSG_LEN(msg) (sizeof(msg) - sizeof((msg).mtype))
 
-/* Valori possibili di exit status */
-
-#define EXIT_TAXI 3
-
 /*
  * Macro per la gestione dei semafori
  * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle

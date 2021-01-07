@@ -1,28 +1,21 @@
 #include "../lib/common.h"
 #include "../lib/sorgente.h"
 
-int sem_id, msq_id, source_pos;
+int msq_id, source_pos;
 struct sembuf sops;
 Cell *city_grid;
 
 int main(int argc, char *argv[])
 {
-    int shm_id, reqs_rate;
+    int sem_id, shm_id, reqs_rate;
     struct sigaction sa;
-    sigset_t sig_mask;
     struct timespec slp_time, time_left, tmp;
-    Request req;
 
-    /* 
-     * Processo creato dal master, leggere i parametri passati tramite execve
-     * - posizione della propria cella
-     * - numero di richieste da inviare ogni intervallo di tempo
-     */
 
     source_pos = atoi(argv[1]);
     reqs_rate = atoi(argv[2]);
 
-    /* Gestire maschere / stabilire l'handler per i 3/4 segnali */
+    /* Impostare il signal handler */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -32,7 +25,7 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
 
-    /* Accedere all'array di semafori per sincronizzarmi col master. */
+    /* Accedere all'array di semafori per la sincronizzazione col master. */
 
     if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
         TEST_ERROR;
@@ -46,7 +39,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /* Devo scrivere l'id della coda nella sua cella, così che i taxi vi possano accedere */
+    /* Scrivere l'id della coda nella sua cella, così che i taxi vi possano accedere */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -56,15 +49,12 @@ int main(int argc, char *argv[])
     TEST_ERROR;
     city_grid[source_pos].msq_id = msq_id;
 
-    /* Invio reqs_rate richieste iniziali */
+    /* Inviare reqs_rate richieste iniziali */
 
     srand(getpid() + time(NULL));
     create_requests(reqs_rate);
 
-    /* Quando sono pronto per la simulazione faccio signal su SEM_KIDS e wait for zero su SEM_START */
-
-    sigemptyset(&sig_mask);
-    sigaddset(&sig_mask, SIGUSR1);
+    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -72,7 +62,7 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
-    /* Simulazione iniziata, posso entrare nel ciclo infinito di generazione di richieste */
+    /* Simulazione iniziata */
 
     while (1) {
         slp_time.tv_sec = BURST_INTERVAL;
@@ -90,15 +80,14 @@ int main(int argc, char *argv[])
 void handle_signal(int signum)
 {
     switch (signum) {
-    case SIGINT: /* Ctrl-C da terminale */
-    case SIGTERM: /* "End Process" nel manager di sistema (NO SIGKILL) */
+    case SIGINT:
+    case SIGTERM: /* Terminazione forzata */
         terminate();
         break;
-    case SIGUSR1:
-        /* Genera una richiesta ed inseriscila nella coda */
+    case SIGUSR1: /* Richiesta da terminale */
         create_requests(1);
         break;
-    case SIGALRM:
+    case SIGALRM: /* Fine simulazione */
         send_stats();
         terminate();
         break;
@@ -149,5 +138,5 @@ void terminate()
 {
     shmdt(city_grid);
     msgctl(msq_id, IPC_RMID, NULL);
-    exit(EXIT_FAILURE);
+    exit(EXIT_SUCCESS);
 }

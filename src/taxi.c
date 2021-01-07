@@ -1,7 +1,7 @@
 #include "../lib/common.h"
 #include "../lib/taxi.h"
 
-int sem_id, shm_id, taxi_pos, SO_TIMEOUT, *sources_pos;
+int sem_id, taxi_pos, SO_TIMEOUT, *sources_pos;
 Cell *city_grid;
 struct sembuf sops;
 TaxiStats stats;
@@ -9,18 +9,16 @@ struct itimerval timer_init, time_left, timer_block;
 
 int main(int argc, char *argv[])
 {
-    int i, cnt, dest_pos, exc_pos, SO_SOURCES;
+    int i, cnt, dest_pos, exc_pos, shm_id, SO_SOURCES;
     struct sigaction sa;
     sigset_t sig_mask;
     Request req;
 
-    /* Lettura parametri (posizione, SO_SOURCES, SO_TIMEOUT) */
+    /* Inizializzare le variabili */
 
     taxi_pos = atoi(argv[1]);
     SO_SOURCES = atoi(argv[2]);
     SO_TIMEOUT = atoi(argv[3]);
-
-    /* Inizializzazione delle variabili */
 
     bzero(&stats, sizeof(stats));
     stats.mtype = REQ_SUCC_MTYPE;
@@ -33,7 +31,7 @@ int main(int argc, char *argv[])
     exc_pos = -1;
     srand(getpid() + time(NULL));
 
-    /* Assegnazione di handle_signal, sblocco di SIGALRM per i taxi di seconda generazione */
+    /* Impostare il signal handler, sbloccare SIGALRM (per i taxi di seconda generazione) */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -67,7 +65,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /* Pronto ? Allora signal su SEM_KIDS e wait for zero su SEM_START */
+    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -81,7 +79,7 @@ int main(int argc, char *argv[])
 
     while (1) {
         
-        /* Trovare la sorgente più vicina tramite manhattan distance */
+        /* Trovare la sorgente più vicina */
 
         dest_pos = closest_source(SO_SOURCES, exc_pos);
 
@@ -92,7 +90,7 @@ int main(int argc, char *argv[])
             drive_straight(dest_pos);
         }
 
-        /* IF coda non vuota : prelevare una richiesta. ELSE continue; */
+        /* Se la coda non è vuota : prelevare una richiesta. Altrimenti cercare di nuovo */
 
         msgrcv(city_grid[taxi_pos].msq_id, &req, MSG_LEN(req), 0, IPC_NOWAIT);
         if (errno == ENOMSG) {
@@ -144,7 +142,6 @@ void drive_diagonal(int goal)
     roads[1] = GET_X(taxi_pos) > GET_X(goal) ? GO_LEFT : GO_RIGHT;
 
     while (!ALIGNED(taxi_pos, goal)) {
-        /* Scelgo tra una delle due strade che mi avvicinano a goal */
         dir = roads[RAND_RNG(0, 1)];
         GET_NEXT(next, dir);
         switch (dir) {
@@ -182,7 +179,7 @@ void drive_straight(int goal)
         GET_NEXT(next, new_dir);
         if (!IS_HOLE(city_grid[next])) {
             access_cell(next, new_dir);
-        } else { /* Circumnavigarlo */
+        } else {
             circle_hole(new_dir, goal);
             return;
         }
@@ -196,7 +193,6 @@ void circle_hole(int8_t dir, int goal)
     int next;
 
     do {
-        /* Scelgo una strada perpendicolare a new_dir */
         old_dir = dir;
         dir += (dir == GO_UP || dir == GO_LEFT) ? RAND_RNG(2, 3) : RAND_RNG(1, 2);
         dir %= N_ROADS;
@@ -254,7 +250,7 @@ void handle_signal(int signum)
     case SIGTERM: /* Terminazione forzata */
         shmdt(city_grid);
         free(sources_pos);
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);
         break;
     case SIGALRM: /* Fine simulazione : invia statistiche al master e termina */
         terminate();
@@ -278,5 +274,5 @@ void terminate()
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
-    exit(EXIT_TAXI);
+    exit(EXIT_SUCCESS);
 }

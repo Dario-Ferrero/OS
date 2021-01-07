@@ -3,12 +3,12 @@
 #include "../lib/gridprint.h"
 
 Cell *city_grid;
-int sem_id, shm_id;
-struct sembuf sops;
 
 int main(int argc, char *argv[])
 {
+    int shm_id, sem_id;
     struct sigaction sa;
+    struct sembuf sops;
 
     /* Gestire maschere e segnali */
 
@@ -19,14 +19,14 @@ int main(int argc, char *argv[])
 
     setvbuf(stdout, NULL, _IOFBF, 0);
 
-    /* Accesso all'array di semafori */
+    /* Accedere all'array di semafori */
 
     if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
 
-    /* Accesso alla griglia di celle */
+    /* Accedere alla griglia di simulazione */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
     print_grid_state(sem_id, city_grid);
 
-    /* Finito inizializzazione, può partire la simulazione */
+    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -56,8 +56,7 @@ int main(int argc, char *argv[])
 
 void handle_signal(int signum)
 {
-    switch (signum)
-    {
+    switch (signum) {
     case SIGINT:
     case SIGTERM:
         terminate();
