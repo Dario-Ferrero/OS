@@ -85,13 +85,6 @@ void create_taxis(int n_taxis);
 void create_printer();
 
 /*
- * Stampa a terminale, per ogni cella di city_grid, il valore dei suoi campi
- * 
- * DA RIMUOVERE O FAR DIVENTARE MACRO DI DEBUG.
- */
-void print_grid_values();
-
-/*
  * Signal handler per il processo
  */
 void handle_signal(int signum);

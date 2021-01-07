@@ -17,31 +17,31 @@ int main(int argc, char *argv[])
     int i, status, pos;
     struct sigaction sa;
 
-    fprintf(stderr, "Lettura parametri... ");
+    dprintf(STDOUT_FILENO, "Lettura parametri... ");
     read_params();
-    fprintf(stderr, "parametri letti.\n");
+    dprintf(STDOUT_FILENO, "parametri letti.\n");
 
-    fprintf(stderr, "Controllo parametri... ");
+    dprintf(STDOUT_FILENO, "Controllo parametri... ");
     check_params();
-    fprintf(stderr, "parametri validi.\n");
+    dprintf(STDOUT_FILENO, "parametri validi.\n");
 
-    fprintf(stderr, "Inizializzazione griglia... \n\n");
+    dprintf(STDOUT_FILENO, "Inizializzazione griglia... \n\n");
     init_city_grid();
-    fprintf(stderr, "Griglia inizializzata\n");
+    dprintf(STDOUT_FILENO, "Griglia inizializzata\n");
 
     print_initial_grid(city_grid);
 
-    fprintf(stderr, "Assegnamento celle sorgente... ");
+    dprintf(STDOUT_FILENO, "Assegnamento celle sorgente... ");
     assign_sources();
-    fprintf(stderr, "celle sorgente assegnate.\n");
+    dprintf(STDOUT_FILENO, "celle sorgente assegnate.\n");
 
     print_initial_grid(city_grid);
 
-    fprintf(stderr, "Inizializzazione semafori... ");
+    dprintf(STDOUT_FILENO, "Inizializzazione semafori... ");
     init_sems();
-    fprintf(stderr, "semafori inizializzati.\n");
+    dprintf(STDOUT_FILENO, "semafori inizializzati.\n");
 
-    fprintf(stderr, "Creazione coda di messaggi per statistiche taxi... ");
+    dprintf(STDOUT_FILENO, "Creazione coda di messaggi per statistiche taxi... ");
     if ((statsq_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600)) == -1) {
         TEST_ERROR;
         terminate();
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     tstats_i = 0;
     tstats_size = SO_TAXI;
     tstats = (TaxiStats *)calloc(tstats_size, sizeof(*tstats));
-    fprintf(stderr, "coda creata.\n\n");
+    dprintf(STDOUT_FILENO, "coda creata.\n\n");
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
-    fprintf(stderr, "Creazione processi sorgente... ");
+    dprintf(STDOUT_FILENO, "Creazione processi sorgente... ");
     create_sources();
 
     /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
@@ -65,10 +65,10 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "processi sorgente creati.\n");
-    fprintf(stderr, "Master sbloccato, le sorgenti si sono inizializzate.\n");
+    dprintf(STDOUT_FILENO, "processi sorgente creati.\n");
+    dprintf(STDOUT_FILENO, "Master sbloccato, le sorgenti si sono inizializzate.\n");
 
-    fprintf(stderr, "\nCreazione processi taxi... ");
+    dprintf(STDOUT_FILENO, "\nCreazione processi taxi... ");
     taxis_i = 0;
     taxis_size = SO_TAXI;
     taxis = (int *)calloc(taxis_size, sizeof(*taxis));
@@ -79,12 +79,10 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -SO_TAXI, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "processi taxi creati.\n");
-    fprintf(stderr, "Master sbloccato, i taxi si sono inizializzati.\n\n");
+    dprintf(STDOUT_FILENO, "processi taxi creati.\n");
+    dprintf(STDOUT_FILENO, "Master sbloccato, i taxi si sono inizializzati.\n\n");
 
-    /* print_grid_values(); */
-
-    fprintf(stderr, "Creazione processo printer... ");
+    dprintf(STDOUT_FILENO, "Creazione processo printer... ");
     create_printer();
 
     /* Aspetto che il printer abbia finito di inizializzarsi */
@@ -92,7 +90,7 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_KIDS, -1, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Processo printer creato.\n");
+    dprintf(STDOUT_FILENO, "Processo printer creato.\n");
 
     dprintf(STDOUT_FILENO, "Processi figli creati, può partire la simulazione!\n\n");
     dprintf(STDOUT_FILENO, "I Process ID delle sorgenti sono osservabili:\n");
@@ -190,7 +188,7 @@ void init_city_grid()
     city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
 
-    fprintf(stderr, "Assegnamento dei %d HOLE... ", SO_HOLES);
+    dprintf(STDOUT_FILENO, "Assegnamento dei %d HOLE... ", SO_HOLES);
     srand(getpid() + time(NULL));
     i = SO_HOLES;
     while (i > 0) {
@@ -200,9 +198,9 @@ void init_city_grid()
             i--;
         }
     }
-    fprintf(stderr, "assegnati (%d rimanenti).\n", i);
+    dprintf(STDOUT_FILENO, "assegnati (%d rimanenti).\n", i);
 
-    fprintf(stderr, "Inizializzazione delle celle... ");
+    dprintf(STDOUT_FILENO, "Inizializzazione delle celle... ");
     for (i = 0; i < GRID_SIZE; i++) {
         if (!IS_HOLE(city_grid[i])) {
             city_grid[i].cross_time = (long)RAND_RNG(SO_TIMENSEC_MIN, SO_TIMENSEC_MAX);
@@ -212,7 +210,7 @@ void init_city_grid()
             city_grid[i].flags = 0;
         }
     }
-    fprintf(stderr, "celle inizializzate.\n\n");
+    dprintf(STDOUT_FILENO, "celle inizializzate.\n\n");
 }
 
 
@@ -385,20 +383,6 @@ void create_printer()
 }
 
 
-void print_grid_values()
-{
-    long i;
-
-    for (i = 0; i < GRID_SIZE; i++) {
-        fprintf(stderr, "city_grid[%5ld].cross_time = %ld\n", i, city_grid[i].cross_time);
-        fprintf(stderr, "city_grid[%5ld].msq_id = %d\n", i, city_grid[i].msq_id);
-        fprintf(stderr, "city_grid[%5ld].cross_n = %d\n", i, city_grid[i].cross_n);
-        fprintf(stderr, "city_grid[%5ld].capacity = %d\n", i, city_grid[i].capacity);
-        fprintf(stderr, "city_grid[%5ld].flags = %u\n\n", i, city_grid[i].flags);
-    }
-}
-
-
 void end_simulation()
 {
     int i, child_cnt, *top_cells;
@@ -443,15 +427,7 @@ void end_simulation()
         }
         req_succ += tstats[i].reqs_compl;
     }
-/*
-    for (i = 0; i < taxis_i; i++) {
-        dprintf(STDOUT_FILENO, "tstats[%4d].taxi_pid = %d\n", i, tstats[i].taxi_pid);
-        dprintf(STDOUT_FILENO, "tstats[%4d].mtype = %ld\n", i, tstats[i].mtype);
-        dprintf(STDOUT_FILENO, "tstats[%4d].cells_crossed = %d\n", i, tstats[i].cells_crossed);
-        dprintf(STDOUT_FILENO, "tstats[%4d].reqs_compl = %d\n", i, tstats[i].reqs_compl);
-        dprintf(STDOUT_FILENO, "tstats[%4d].route_time = %lu\n\n", i, tstats[i].route_time);
-    }
-*/
+
     dprintf(STDOUT_FILENO, "# Richieste completate con successo: %ld\n", req_succ);
     dprintf(STDOUT_FILENO, "# Richieste inevase: %ld\n", req_unpicked);
     dprintf(STDOUT_FILENO, "# Richieste abortite: %ld\n\n", req_abrt);
