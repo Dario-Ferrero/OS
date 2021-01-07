@@ -1,5 +1,5 @@
-#include "common.h"
-#include "taxi.h"
+#include "../lib/common.h"
+#include "../lib/taxi.h"
 
 int sem_id, shm_id, taxi_pos, SO_TIMEOUT, *sources_pos;
 Cell *city_grid;

@@ -1,5 +1,5 @@
-#include "common.h"
-#include "sorgente.h"
+#include "../lib/common.h"
+#include "../lib/sorgente.h"
 
 int sem_id, msq_id, source_pos;
 struct sembuf sops;
@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     /* 
      * Processo creato dal master, leggere i parametri passati tramite execve
      * - posizione della propria cella
-     * - numero di richieste da inviare
+     * - numero di richieste da inviare ogni intervallo di tempo
      */
 
     source_pos = atoi(argv[1]);

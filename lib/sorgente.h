@@ -1,7 +1,7 @@
 #ifndef __SORGENTE_H__
 #define __SORGENTE_H__
 
-#define BURST_INTERVAL 1
+#define BURST_INTERVAL 2
 
 /*
  * Genera nreqs richieste con origine in source_pos e destinazione casuale

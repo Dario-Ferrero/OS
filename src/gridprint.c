@@ -1,5 +1,5 @@
-#include "common.h"
-#include "gridprint.h"
+#include "../lib/common.h"
+#include "../lib/gridprint.h"
 
 
 void print_initial_grid(Cell *city_grid)

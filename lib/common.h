@@ -73,8 +73,8 @@ typedef struct _Request {
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  20
-#define SO_HEIGHT 10
+#define SO_WIDTH  60
+#define SO_HEIGHT 20
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)

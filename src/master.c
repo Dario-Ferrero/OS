@@ -1,6 +1,6 @@
-#include "common.h"
-#include "master.h"
-#include "gridprint.h"
+#include "../lib/common.h"
+#include "../lib/master.h"
+#include "../lib/gridprint.h"
 
 Cell *city_grid;
 TaxiStats *tstats;
@@ -8,16 +8,14 @@ int sem_id, shm_id, statsq_id,
     taxis_size, taxis_i,
     tstats_size, tstats_i,
     *sources_pos;
-struct sembuf sops;
-
 pid_t *taxis, *sources, printer;
+struct sembuf sops;
 
 int main(int argc, char *argv[])
 {
     pid_t child_pid;
     int i, status, pos;
     struct sigaction sa;
-    sigset_t sig_mask;
 
     fprintf(stderr, "Lettura parametri... ");
     read_params();
@@ -53,8 +51,6 @@ int main(int argc, char *argv[])
     tstats = (TaxiStats *)calloc(tstats_size, sizeof(*tstats));
     fprintf(stderr, "coda creata.\n\n");
 
-    sigemptyset(&sig_mask);
-    sigaddset(&sig_mask, SIGALRM);
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
@@ -292,7 +288,7 @@ void create_sources()
 
     sources = (pid_t *)calloc(SO_SOURCES, sizeof(*sources));
     src_args[0] = SRC_FILE;
-    sprintf(nreqs_buf, "%d", (SO_TAXI / SO_SOURCES) ? (SO_TAXI / SO_SOURCES) : 1);
+    sprintf(nreqs_buf, "%d", REQS_RATE ? REQS_RATE : 1);
     src_args[2] = nreqs_buf;
     src_args[3] = NULL;
     for (i = 0; i < SO_SOURCES; i++) {

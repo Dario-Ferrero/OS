@@ -1,6 +1,6 @@
-#include "common.h"
-#include "printer.h"
-#include "gridprint.h"
+#include "../lib/common.h"
+#include "../lib/printer.h"
+#include "../lib/gridprint.h"
 
 Cell *city_grid;
 int sem_id, shm_id;

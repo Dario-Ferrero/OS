@@ -1,19 +1,26 @@
 #ifndef __MASTER_H__
 #define __MASTER_H__
 
-#define PARAMS_FILE "test.conf"
+/* Macro per la lettura dei parametri di configurazione */
+
+#define PARAMS_FILE "conf/large.conf"
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10
 
-#define SRC_FILE "./sorgente"
-#define TAXI_FILE "./taxi"
-#define PRINTER_FILE "./printer"
+/* Macro per la generazione dei processi figli */
+
+#define SRC_FILE "./out/sorgente"
+#define TAXI_FILE "./out/taxi"
+#define PRINTER_FILE "./out/printer"
 #define BUF_SIZE 10
 
-
 /*
- * Parametri di configurazione, letti a run-time
+ * Richieste generate da una sorgente per un certo intervallo di tempo.
+ * Passato come argomento ad ogni processo sorgente creato.
  */
+#define REQS_RATE (SO_TAXI / SO_SOURCES)
+
+/* Parametri di configurazione, letti a run-time */
 
 int SO_HOLES;
 int SO_TOP_CELLS;
