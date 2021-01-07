@@ -114,12 +114,16 @@ void collect_taxi_stats(int ntaxis);
  */
 void print_best_taxis();
 
+/*
+ * Salva nell'array puntato da top_cells le posizioni delle SO_TOP_CELLS celle
+ * più attraversate (che non siano celle sorgenti).
+ * Usa un adattamento dell'algoritmo di insertion_sort.
+ */
 void get_top_cells(int **top_cells);
 
 /*
  * Rilascia le risorse IPC e termina
  */
 void terminate();
-
 
 #endif /* __MASTER_H__ */

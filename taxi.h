@@ -4,6 +4,11 @@
 #define ABS(n) (n < 0 ? -(n) : n)
 #define MANH_DIST(from, dest) (ABS(GET_X(dest) - GET_X(from)) + ABS(GET_Y(dest) - GET_Y(from)))
 
+#define SEMTIMEDOP(id, num, op, flg, tout)  sops.sem_num = num;		\
+									        sops.sem_op = op;		\
+									        sops.sem_flg = flg;		\
+									        semtimedop(id, &sops, 1, tout);
+
 /*
  * Le quattro posizioni adiacenti alla data pos.
  * E' ritornata una posizione invalida (-1) se si è raggiunto
@@ -25,6 +30,26 @@
 #define SAME_COLUMN(fst, snd)   (GET_X(fst) == GET_X(snd))
 #define ALIGNED(fst, snd)       (SAME_ROW(fst, snd) || SAME_COLUMN(fst, snd))
 
+/*
+ * Assegna a next la posizione della cella adiacente a taxi_pos in direzione dir
+ */
+#define GET_NEXT(next, dir) switch (dir) {				\
+        					case GO_UP:					\
+            					next = UP(taxi_pos);	\
+								break;					\
+        					case GO_DOWN:				\
+            					next = DOWN(taxi_pos);	\
+								break;					\
+        					case GO_LEFT:				\
+            					next = LEFT(taxi_pos);	\
+								break;					\
+        					case GO_RIGHT:				\
+            					next = RIGHT(taxi_pos);	\
+								break;					\
+        					default:					\
+            					next = -1;				\
+								break;					\
+    						}
 
 /* 
  * Stima tramite la distanza di Manhattan la posizione della cella sorgente
@@ -33,26 +58,25 @@
 int closest_source(int n_src, int except);
 
 /*
- * Sposta il taxi dalla posizione taxi_pos, portandolo su una posizione
- * allineata a goal. Ritorna la posizione raggiunta.
+ * Sposta il taxi dalla posizione taxi_pos, aggiornandola col valore
+ * di una posizione allineata a goal.
  */
-int drive_diagonal(int goal);
+void drive_diagonal(int goal);
 
 /*
  * Sposta il taxi dalla posizione taxi_pos verso la posizione goal in linea retta.
- * Ritorna la posizione raggiunta :
- *  - goal : se il taxi ha raggiunto la destinazione.
- *  - altrimenti : una cella inaccessibile è stata incontrata ed evitata
- *                 tramite la funzione circle_hole() 
+ * La variabile globale taxi_pos è aggiornata al valore goal se questo è stato
+ * raggiunto o ad un altro valore se sulla strada si è trovata
+ * (ed evitata tramite 'circle_hole') una cella accessibile.
  */
-int drive_straight(int goal);
+void drive_straight(int goal);
 
 /*
  * Evita una cella inaccessibile adiacente a taxi_pos in direzione dir,
- * muovendo il taxi in una cella in direzione perpendicolare a dir
- * ed in seguito in una cella in direzione dir.
+ * muovendo il taxi di una cella in direzione perpendicolare a dir
+ * ed in seguito di una cella in direzione dir.
  */
-int circle_hole(int8_t dir, int goal);
+void circle_hole(int8_t dir, int goal);
 
 /*
  * Ritorna la posizione, rispetto a taxi_pos, della cella in direzione dir.
@@ -60,10 +84,19 @@ int circle_hole(int8_t dir, int goal);
 int get_next(int8_t dir);
 
 /*
- * Sposta il taxi dalla cella taxi_pos alla cella adiacente dest di city_grid.
- * Ritorna dest se lo spostamento è avvenuto con successo, taxi_pos altrimenti.
+ * Sposta il taxi dalla cella taxi_pos alla cella adiacente dest situata
+ * in direzione dir. Se lo spostamento è avvenuto con successo,
+ * il valore di taxi_pos è aggiornato a dest.
+ * Se il taxi resta fermo per più di SO_TIMEOUT secondi, il processo
+ * invia le proprie statistiche al processo master e termina.
  */
-int access_cell(int dest);
+void access_cell(int dest, int8_t dir);
+
+/*
+ * Invia le proprie TaxiStats al processo master
+ * e termina rilasciando le proprie risorse.
+ */
+void terminate();
 
 /*
  * Signal handler per il processo

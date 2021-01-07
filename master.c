@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     dprintf(STDOUT_FILENO, "- da applicazione, tramite il Monitor di Sistema\n");
     dprintf(STDOUT_FILENO, "E' possibile generare una richiesta per una sorgente tramite il comando:\n\n");
     dprintf(STDOUT_FILENO, "\t\t\tkill -SIGUSR1 pid_sorgente\n\n");
-    dprintf(STDOUT_FILENO, "Premere un tasto qualunque per iniziare la simulazione o Ctrl-c per annullarla.\n");
+    dprintf(STDOUT_FILENO, "Premere ENTER per iniziare la simulazione o Ctrl-c per annullarla.\n");
     scanf("%c", (char *)&i);
 
     SEMOP(sem_id, SEM_START, -1, 0);
@@ -335,17 +335,20 @@ void create_taxis(int n_taxis)
             TEST_ERROR;
             exit(EXIT_FAILURE);
         case 0:
-            /* taxi : genero posizione random e verifico se posso accedere su semaforo */
             pos = -1;
             srand(getpid() + time(NULL));
             while (pos < 0) {
                 pos = RAND_RNG(0, GRID_SIZE-1);
-                i = semctl(sem_id, pos, GETVAL);
-                if (i > 0) {
-                    SEMOP(sem_id, pos, -1, 0);
+                /*i = semctl(sem_id, pos, GETVAL);*/
+                /*if (i > 0) {*/
+                    SEMOP(sem_id, pos, -1, IPC_NOWAIT);
+                    if (errno == EAGAIN) {
+                        errno = 0;
+                        pos = -1;
+                    }/*
                 } else {
                     pos = -1;
-                }
+                }*/
             }
             sprintf(pos_buf, "%d", pos);
             taxi_args[1] = pos_buf;
@@ -417,31 +420,26 @@ void end_simulation()
         kill(sources[i], SIGALRM);
     }
 
-    dprintf(STDOUT_FILENO, "%s:%d: Raccolta statistiche sorgenti\n", __FILE__, __LINE__);
+    dprintf(STDOUT_FILENO, "Simulazione terminata.\n");
+    dprintf(STDOUT_FILENO, "Raccolta statistiche sorgenti... ");
     child_cnt = SO_SOURCES;
     while (child_cnt-- && msgrcv(statsq_id, &src_stat, MSG_LEN(src_stat), SOURCE_MTYPE, 0) != -1) {
-        /*dprintf(STDOUT_FILENO, "%s:%d: CHECK #%d\n", __FILE__, __LINE__, child_cnt);*/
         req_unpicked += src_stat.reqs_unpicked;
     }
-    dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats sorgenti.\n", __FILE__, __LINE__);
-    while (waitpid(-1, NULL, WNOHANG) != 0);
-
+    dprintf(STDOUT_FILENO, "completata.\n\n");
+    for (i = 0; i < SO_SOURCES; i++) {
+        waitpid(sources[i], NULL, 0);
+    }
 
     child_cnt = semctl(sem_id, SEM_KIDS, GETVAL);
-    dprintf(STDOUT_FILENO, "%s:%d: Taxi di seconda generazione = %d\n", __FILE__, __LINE__, child_cnt);
-    dprintf(STDOUT_FILENO, "%s:%d: Raccolta statistiche taxi\n", __FILE__, __LINE__);
+    dprintf(STDOUT_FILENO, "Taxi di prima generazione = %d\n", SO_TAXI);
+    dprintf(STDOUT_FILENO, "Taxi di seconda generazione = %d\n", child_cnt);
+    dprintf(STDOUT_FILENO, "Raccolta statistiche taxi... ");
     for (i = 0, child_cnt = 0; i < taxis_i; i++) {
-        if (kill(taxis[i], SIGALRM) == 0) {
-            child_cnt++;
-        }
+        kill(taxis[i], SIGALRM);
     }
-    PRINT_INT(taxis_i);
-    PRINT_INT(tstats_i);
-    PRINT_INT(child_cnt);
-    child_cnt = 0;
-
     collect_taxi_stats(0);
-    dprintf(STDOUT_FILENO, "%s:%d: Finito raccolta stats taxi.\n", __FILE__, __LINE__);
+    dprintf(STDOUT_FILENO, "completata.\n\n");
 
     for (i = 0; i < taxis_i; i++) {
         if (tstats[i].mtype == REQ_ABRT_MTYPE) {
@@ -449,17 +447,23 @@ void end_simulation()
         }
         req_succ += tstats[i].reqs_compl;
     }
-    dprintf(STDOUT_FILENO, "Simulazione Terminata.\n\n");
-    dprintf(STDOUT_FILENO, "# Richieste completate con successo %ld\n", req_succ);
-    dprintf(STDOUT_FILENO, "# Richieste inevase %ld\n", req_unpicked);
-    dprintf(STDOUT_FILENO, "# Richieste abortite %ld\n\n", req_abrt);
+/*
+    for (i = 0; i < taxis_i; i++) {
+        dprintf(STDOUT_FILENO, "tstats[%4d].taxi_pid = %d\n", i, tstats[i].taxi_pid);
+        dprintf(STDOUT_FILENO, "tstats[%4d].mtype = %ld\n", i, tstats[i].mtype);
+        dprintf(STDOUT_FILENO, "tstats[%4d].cells_crossed = %d\n", i, tstats[i].cells_crossed);
+        dprintf(STDOUT_FILENO, "tstats[%4d].reqs_compl = %d\n", i, tstats[i].reqs_compl);
+        dprintf(STDOUT_FILENO, "tstats[%4d].route_time = %lu\n\n", i, tstats[i].route_time);
+    }
+*/
+    dprintf(STDOUT_FILENO, "# Richieste completate con successo: %ld\n", req_succ);
+    dprintf(STDOUT_FILENO, "# Richieste inevase: %ld\n", req_unpicked);
+    dprintf(STDOUT_FILENO, "# Richieste abortite: %ld\n\n", req_abrt);
 
     print_best_taxis();
 
     get_top_cells(&top_cells);
-    for (i = 0; i < SO_TOP_CELLS; i++) {
-        printf("Top cell #%2d: city_grid[%5d]\n", i+1, top_cells[i]);
-    }
+
     print_final_grid(city_grid, top_cells, SO_TOP_CELLS);
 
     free(top_cells);
@@ -533,12 +537,17 @@ void get_top_cells(int **top_cells)
     *top_cells = (int *)calloc(SO_TOP_CELLS+1, sizeof(**top_cells));
     cell_cnt = (int *)calloc(SO_TOP_CELLS+1, sizeof(*cell_cnt));
 
+    for (i = 0; i < SO_TOP_CELLS; i++) {
+        (*top_cells)[i] = -1;
+    }
     for (i = 0; i < GRID_SIZE; i++) {
-        (*top_cells)[SO_TOP_CELLS] = i;
-        cell_cnt[SO_TOP_CELLS] = city_grid[i].cross_n;
-        for (j = SO_TOP_CELLS; j >= 1 && cell_cnt[j-1] < cell_cnt[j]; j--) {
-            SWAP(cell_cnt[j], cell_cnt[j-1], tmp);
-            SWAP((*top_cells)[j], (*top_cells)[j-1], tmp);
+        if (!IS_SOURCE(city_grid[i])) {
+            (*top_cells)[SO_TOP_CELLS] = i;
+            cell_cnt[SO_TOP_CELLS] = city_grid[i].cross_n;
+            for (j = SO_TOP_CELLS; j >= 1 && cell_cnt[j-1] < cell_cnt[j]; j--) {
+                SWAP(cell_cnt[j], cell_cnt[j-1], tmp);
+                SWAP((*top_cells)[j], (*top_cells)[j-1], tmp);
+            }
         }
     }
 
@@ -572,15 +581,14 @@ void handle_signal(int signum)
 
 void term_kids(pid_t *kids, int nkids)
 {
-    int i, status;
+    int i;
 
     for (i = 0; i < nkids; i++) {
         kill(kids[i], SIGTERM);
     }
-    while ((i = wait(&status)) != -1) {
-        fprintf(stderr, "Figlio #%5d terminato con exit status %d\n", i, WEXITSTATUS(status));
-    }
+    while (wait(NULL) != -1);
     free(kids);
+    fprintf(stderr, "Processi figli terminati ed array di PID deallocato.\n");
 }
 
 
@@ -590,5 +598,6 @@ void terminate()
     shmctl(shm_id, IPC_RMID, NULL);
     semctl(sem_id, 0, IPC_RMID);
     msgctl(statsq_id, IPC_RMID, NULL);
+    fprintf(stderr, "Risorse IPC deallocate con successo.\n");
     exit(EXIT_SUCCESS);
 }

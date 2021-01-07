@@ -1,9 +1,27 @@
 #ifndef __GRIDPRINT_H__
 #define __GRIDPRINT_H__
 
+/*
+ * Codici per stampa colorata a terminale
+ */
+
+#define ANSI_YELLOW  "\x1b[33m"
+#define ANSI_RED 	   "\x1b[31m"
+#define ANSI_GREEN   "\x1b[32m"
+#define ANSI_CYAN    "\x1b[36m"
+#define ANSI_RESET 	"\x1b[0m"
+
 #define PRINT_INTERVAL 1
 
-#define PRINT_HEADER printf("\n\n\n       ");           \
+#define PRINT_LEGEND printf("\n\n\n");                \
+                     printf("Chiave di lettura:\n");  \
+                     printf(ANSI_YELLOW"S"ANSI_RESET" : cella sorgente\n");      \
+                     printf(ANSI_RED"H"ANSI_RESET" : cella inaccessibile\n");    \
+                     printf(ANSI_CYAN"n"ANSI_RESET" : taxi sulla cella\n");        \
+                     printf(ANSI_GREEN"T"ANSI_RESET" : top cell\n\n");
+
+
+#define PRINT_HEADER printf("       ");           \
                      for (x = 0; x < SO_WIDTH; x++) {   \
                         printf("%d ", x % 10);          \
                      }                                  \

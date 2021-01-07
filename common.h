@@ -17,6 +17,9 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 
+/*
+ * Cella della griglia dove si spostano i taxi
+ */
 
 typedef struct _Cell {
     long cross_time;
@@ -26,13 +29,16 @@ typedef struct _Cell {
     u_int8_t flags;
 } Cell;
 
+/*
+ * Strutture dati da inviare nelle code di messaggi
+ */
 
 typedef struct _TaxiStats {
     long mtype;
+	unsigned long route_time;
     pid_t taxi_pid;
     int16_t cells_crossed;
     int16_t reqs_compl;
-	unsigned long route_time;
 } TaxiStats;
 
 typedef struct _SourceStats {
@@ -47,10 +53,12 @@ typedef struct _Request {
 
 /*
  * Macro per debugging
+ * 
+ * TEST_ERROR presa dagli esempi di laboratorio
  */
 
 #define TEST_ERROR    if (errno) {fprintf(stderr,			\
-					  "%s:%d: PID=%5d: Error %d (%s)\n", \
+					  "%s:%d: PID=%5d: Errore %d (%s)\n", \
 					  __FILE__,			\
 					  __LINE__,			\
 					  getpid(),			\
@@ -65,8 +73,8 @@ typedef struct _Request {
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  60
-#define SO_HEIGHT 20
+#define SO_WIDTH  20
+#define SO_HEIGHT 10
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)
@@ -104,8 +112,7 @@ typedef struct _Request {
 #define SEMOP(id, num, op, flg)		sops.sem_num = num;		\
 									sops.sem_op = op;		\
 									sops.sem_flg = flg;		\
-									semop(id, &sops, 1);	
-
+									semop(id, &sops, 1);
 
 /*
  * Altre macro
@@ -121,15 +128,5 @@ typedef struct _Request {
  * Genera un intero casualmente incluso tra a e b
  */
 #define RAND_RNG(a, b) ((rand() % (b - a + 1)) + a)
-
-/*
- * Stampa colorata a terminale
- */
-
-#define ANSI_YELLOW "\x1b[33m"
-#define ANSI_RED 	"\x1b[31m"
-#define ANSI_GREEN  "\x1b[32m"
-#define ANSI_CYAN   "\x1b[36m"
-#define ANSI_RESET 	"\x1b[0m"
 
 #endif /* __COMMON_H__ */

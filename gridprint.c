@@ -6,6 +6,8 @@ void print_initial_grid(Cell *city_grid)
 {
     int x, y;
 
+    PRINT_LEGEND;
+
     PRINT_HEADER;
 
     for (y = 0; y < SO_HEIGHT; y++) {
@@ -16,19 +18,23 @@ void print_initial_grid(Cell *city_grid)
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                 printf("S ");
             } else {
-                printf("%c ", (char)96);
+                printf("` ");
             }
         }
         printf("|\n");
     }
 
     PRINT_FOOTER;
+
+    fflush(stdout);
 }
 
 
 void print_grid_state(int sem_id, Cell *city_grid)
 {
     int x, y, n_taxi;
+
+    PRINT_LEGEND;
 
     PRINT_HEADER;
 
@@ -48,7 +54,7 @@ void print_grid_state(int sem_id, Cell *city_grid)
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                 printf(ANSI_YELLOW"S "ANSI_RESET);
             } else {
-                printf("%c ", (char)96);
+                printf("` ");
             }
         }
         printf("|\n");
@@ -64,6 +70,8 @@ void print_final_grid(Cell *city_grid, int *top_cells, int ntops)
 {
     int i, x, y;
     int8_t top;
+
+    PRINT_LEGEND;
 
     PRINT_HEADER;
 
@@ -81,12 +89,16 @@ void print_final_grid(Cell *city_grid, int *top_cells, int ntops)
                 printf(ANSI_GREEN"T "ANSI_RESET);
             } else if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                 printf(ANSI_YELLOW"S "ANSI_RESET);
+            } else if (IS_HOLE(city_grid[INDEX(x, y)])) {
+                printf(ANSI_RED"H "ANSI_RESET);
             } else {
-                printf("%c ", (char)96);
+                printf("` ");
             }
         }
         printf("|\n");
     }
 
     PRINT_FOOTER;
+
+    fflush(stdout);
 }
