@@ -252,7 +252,7 @@ void handle_signal(int signum)
         free(sources_pos);
         exit(EXIT_SUCCESS);
         break;
-    case SIGALRM: /* Fine simulazione : invia statistiche al master e termina */
+    case SIGALRM: /* Fine simulazione */
         terminate();
     }
 }

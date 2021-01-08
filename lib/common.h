@@ -79,8 +79,8 @@ typedef struct _Request {
 #define MSG_LEN(msg) (sizeof(msg) - sizeof((msg).mtype))
 
 /*
- * Macro per la gestione dei semafori
- * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle
+ * Macro per la gestione dei semafori.
+ * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle.
  */
 
 #define NSEMS  	  (GRID_SIZE + 3)
@@ -93,7 +93,7 @@ typedef struct _Request {
 									semop(id, &sops, 1);
 
 /*
- * Macro per debugging
+ * Macro per debugging.
  * 
  * TEST_ERROR presa dagli esempi di laboratorio
  */

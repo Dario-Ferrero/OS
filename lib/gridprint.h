@@ -17,11 +17,11 @@
                      printf("Chiave di lettura:\n");  \
                      printf(ANSI_YELLOW"S"ANSI_RESET" : cella sorgente\n");      \
                      printf(ANSI_RED"H"ANSI_RESET" : cella inaccessibile\n");    \
-                     printf(ANSI_CYAN"n"ANSI_RESET" : taxi sulla cella\n");        \
+                     printf(ANSI_CYAN"n"ANSI_RESET" : taxi sulla cella\n");      \
                      printf(ANSI_GREEN"T"ANSI_RESET" : top cell\n\n");
 
 
-#define PRINT_HEADER printf("       ");           \
+#define PRINT_HEADER printf("       ");                 \
                      for (x = 0; x < SO_WIDTH; x++) {   \
                         printf("%d ", x % 10);          \
                      }                                  \

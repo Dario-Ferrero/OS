@@ -45,13 +45,13 @@ int SO_DURATION;
 
 
 /*
- * Legge il file specificato ed inizializza le variabili globali SO
+ * Legge il file PARAMS_FILE ed inizializza le variabili globali SO.
  */
 void read_params();
 
 /*
  * Controlla i valori dei parametri SO e termina
- * nel caso ve ne siano di non validi
+ * nel caso ve ne siano di non validi.
  */
 void check_params();
 
@@ -62,13 +62,13 @@ void check_params();
 void init_city_grid();
 
 /*
- * Ritorna TRUE se almeno una cella adiacente a city_grid[pos] è una HOLE_CELL
+ * Ritorna TRUE se almeno una cella adiacente a city_grid[pos] è una cella inaccessibile.
  */
 int check_adj_cells(long pos);
 
 /*
  * Assegna SO_SOURCES celle in city_grid il ruolo di sorgente
- * e ne salva le posizioni nell'array sources_pos
+ * e ne salva le posizioni nell'array globale sources_pos.
  */
 void assign_sources();
 
@@ -78,43 +78,43 @@ void assign_sources();
 void init_sems();
 
 /*
- * Crea SO_SOURCES processi sorgente, passando ad ognuno una posizione nella
- * griglia tra quelle in sources_pos.
+ * Crea SO_SOURCES processi sorgente, mantenendone i process id
+ * nell'array globale sources.
  */
 void create_sources();
 
 /*
  * Crea n_taxis processi taxi, ognuno in una cella casuale
- * e con almeno un posto libero. Salva i nuovi pid nell'array globale taxis.
+ * con almeno un posto libero. Salva i nuovi pid nell'array globale taxis.
  */
 void create_taxis(int n_taxis);
 
 /* 
- * Crea il processo che si occupa della stampa ad ogni secondo della simulazione
+ * Crea il processo printer che si occupa della stampa ad ogni secondo della simulazione.
  */
 void create_printer();
 
 /*
- * Signal handler per il processo
+ * Signal handler per il processo.
  */
 void handle_signal(int signum);
 
 /*
- * Termina i primi nkids processi figli in kids, per poi liberare
- * la memoria allocata dall'array
+ * Termina nkids processi figli in kids, per poi liberare
+ * la memoria allocata dall'array.
  */
 void term_kids(pid_t *kids, int nkids);
 
 /*
  * Termina i processi figli, ne raccoglie le statistiche e
- * stampa a terminale i risultati della simulazione
+ * stampa ad output i risultati della simulazione.
  */
 void end_simulation();
 
 /*
- * Raccoglie nell'array tstats le statistiche inviate dai taxi terminati.
- * Se il valore di ntaxi è positivo, per ogni statistica raccolta
- * è creato un nuovo processo taxi.
+ * Raccoglie nell'array globale tstats le statistiche inviate dai taxi terminati.
+ * Se il valore di ntaxis è positivo, per ogni statistica raccolta
+ * sono creati ntaxis nuovi processi taxi.
  */
 void collect_taxi_stats(int ntaxis);
 
@@ -132,7 +132,7 @@ void print_best_taxis();
 void get_top_cells(int **top_cells);
 
 /*
- * Rilascia le risorse IPC e termina
+ * Rilascia le risorse IPC e termina.
  */
 void terminate();
 
