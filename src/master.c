@@ -24,6 +24,12 @@ int main(int argc, char *argv[])
     check_params();
     dprintf(STDOUT_FILENO, "parametri validi.\n");
 
+    bzero(&sa, sizeof(sa));
+    sa.sa_handler = handle_signal;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+
     dprintf(STDOUT_FILENO, "Inizializzazione griglia... \n\n");
     init_city_grid();
     dprintf(STDOUT_FILENO, "Griglia inizializzata\n");
@@ -40,7 +46,7 @@ int main(int argc, char *argv[])
     init_sems();
     dprintf(STDOUT_FILENO, "semafori inizializzati.\n");
 
-    dprintf(STDOUT_FILENO, "Creazione coda di messaggi per statistiche taxi... ");
+    dprintf(STDOUT_FILENO, "Creazione coda di messaggi per le statistiche taxi... ");
     if ((statsq_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600)) == -1) {
         TEST_ERROR;
         terminate();
@@ -49,12 +55,6 @@ int main(int argc, char *argv[])
     tstats_size = SO_TAXI;
     tstats = (TaxiStats *)calloc(tstats_size, sizeof(*tstats));
     dprintf(STDOUT_FILENO, "coda creata.\n\n");
-
-    bzero(&sa, sizeof(sa));
-    sa.sa_handler = handle_signal;
-    sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGALRM, &sa, NULL);
 
     dprintf(STDOUT_FILENO, "Creazione processi sorgente... ");
     create_sources();
@@ -148,25 +148,38 @@ void read_params()
 
 void check_params()
 {
-    if (SO_WIDTH <= 0 || SO_HEIGHT <= 0) {
-        fprintf(stderr, "Valori di SO_WIDTH e SO_HEIGHT troppo bassi!\n");
-        exit(EXIT_FAILURE);
-    } else if (SO_SOURCES + SO_HOLES > GRID_SIZE) {
-        fprintf(stderr, "Troppi SO_SOURCES e SO_HOLES per la dimensione della griglia!\n");
-        exit(EXIT_FAILURE);
-    } else if (SO_TOP_CELLS > GRID_SIZE - SO_HOLES) {
-        fprintf(stderr, "Troppe SO_TOP_CELLS rispetto alle celle accessibili!\n");
-        exit(EXIT_FAILURE);
-    } else if (SO_TIMENSEC_MIN > SO_TIMENSEC_MAX) {
-        fprintf(stderr, "Valori SO_TIMENSEC incoerenti! (MIN > MAX)\n");
-        exit(EXIT_FAILURE);
-    } else if (SO_CAP_MIN > SO_CAP_MAX) {
-        fprintf(stderr, "Valori SO_CAP incoerenti! (MIN > MAX)\n");
-        exit(EXIT_FAILURE);
-    } else if (SO_TAXI > (GRID_SIZE - SO_HOLES) * SO_CAP_MIN) {
+    int8_t invalid;
+
+    if (invalid = SO_WIDTH <= 0 || SO_HEIGHT <= 0) {
+        fprintf(stderr, "Valori di SO_WIDTH e SO_HEIGHT non abbastanza alti.\n");
+    } else if (invalid = SO_HOLES < 0) {
+        fprintf(stderr, "Valore di SO_HOLES negativo.\n");
+    } else if (invalid = SO_SOURCES < 1) {
+        fprintf(stderr, "Valore di SO_SOURCES deve essere maggiore di zero.\n");
+    } else if (invalid = SO_TAXI < 1) {
+        fprintf(stderr, "Valore di SO_TAXI negativo.\n");
+    } else if (invalid = SO_SOURCES + SO_HOLES > GRID_SIZE) {
+        fprintf(stderr, "Troppi SO_SOURCES e SO_HOLES rispetto alla dimensione della griglia.\n");
+    } else if (invalid = SO_TOP_CELLS < 0 || SO_TOP_CELLS > GRID_SIZE - SO_HOLES) {
+        fprintf(stderr, "Valore di SO_TOP_CELLS fuori dall'intervallo [0, GRID_SIZE - SO_HOLES].\n");
+    } else if (invalid = SO_TIMENSEC_MIN < 1 || SO_TIMENSEC_MAX < 1 || SO_TIMENSEC_MIN > SO_TIMENSEC_MAX) {
+        fprintf(stderr, "Valori SO_TIMENSEC incoerenti (negativi oppure MIN > MAX).\n");
+    } else if (invalid = SO_CAP_MIN < 1 || SO_CAP_MAX < 1 || SO_CAP_MIN > SO_CAP_MAX) {
+        fprintf(stderr, "Valori SO_CAP incoerenti (negativi oppure MIN > MAX).\n");
+    } else if (invalid = SO_TAXI > (GRID_SIZE - SO_HOLES) * SO_CAP_MIN) {
         fprintf(stderr, "I SO_TAXI potrebbero essere troppi per questa configurazione.\n");
-    } else if (GRID_SIZE / SO_HOLES < 9) {
+    } else if (invalid = GRID_SIZE / SO_HOLES < SIZE_HOLES_RATIO) {
         fprintf(stderr, "Troppi SO_HOLES rispetto alle dimensioni della griglia.\n");
+        fprintf(stderr, "Possono esserci al massimo una cella inaccessibile ogni %d.\n", SIZE_HOLES_RATIO);
+    } else if (invalid = SO_TIMEOUT < 1) {
+        fprintf(stderr, "Valore di SO_TIMEOUT deve essere maggiore di zero.\n");
+    } else if (invalid = SO_DURATION < 1) {
+        fprintf(stderr, "Valore di SO_DURATION deve essere maggiore di zero.\n");
+    } else if (invalid = SO_TIMEOUT > SO_DURATION) {
+        fprintf(stderr, "Valore di SO_TIMEOUT deve essere minore di SO_DURATION.\n");
+    }
+
+    if (invalid) {
         exit(EXIT_FAILURE);
     }
 }

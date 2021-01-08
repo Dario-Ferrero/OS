@@ -47,34 +47,16 @@ typedef struct _SourceStats {
 } SourceStats;
 
 typedef struct _Request {
-    long mtype; 	/* posizione della cella di origine + 1 */
+    long mtype; 	/* src_cell + 1 */
     int dest_cell;
 } Request;
-
-/*
- * Macro per debugging
- * 
- * TEST_ERROR presa dagli esempi di laboratorio
- */
-
-#define TEST_ERROR    if (errno) {fprintf(stderr,			\
-					  "%s:%d: PID=%5d: Errore %d (%s)\n", \
-					  __FILE__,			\
-					  __LINE__,			\
-					  getpid(),			\
-					  errno,			\
-					  strerror(errno));}
-
-#define PRINT_INT(n) fprintf(stderr, "%s:%i: %s = %i\n", __FILE__, __LINE__, #n, n)
-#define PRINT_LONG_I(n) fprintf(stderr, "%s:%i: %s = %li\n", __FILE__, __LINE__, #n, n)
-
 
 /*
  * Macro per l'accesso alla griglia
  */
 
-#define SO_WIDTH  60
-#define SO_HEIGHT 20
+#define SO_WIDTH  20
+#define SO_HEIGHT 10
 #define GRID_SIZE (SO_WIDTH * SO_HEIGHT)
 #define INDEX(x, y) (x + y * SO_WIDTH)
 #define GET_X(pos) (pos % SO_WIDTH)
@@ -109,6 +91,24 @@ typedef struct _Request {
 									sops.sem_op = op;		\
 									sops.sem_flg = flg;		\
 									semop(id, &sops, 1);
+
+/*
+ * Macro per debugging
+ * 
+ * TEST_ERROR presa dagli esempi di laboratorio
+ */
+
+#define TEST_ERROR    if (errno) {fprintf(stderr,			\
+					  "%s:%d: PID=%5d: Errore %d (%s)\n", \
+					  __FILE__,			\
+					  __LINE__,			\
+					  getpid(),			\
+					  errno,			\
+					  strerror(errno));}
+
+#define PRINT_INT(n) fprintf(stderr, "%s:%i: %s = %i\n", __FILE__, __LINE__, #n, n)
+#define PRINT_LONG_I(n) fprintf(stderr, "%s:%i: %s = %li\n", __FILE__, __LINE__, #n, n)
+
 
 /*
  * Altre macro

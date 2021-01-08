@@ -3,9 +3,19 @@
 
 /* Macro per la lettura dei parametri di configurazione */
 
-#define PARAMS_FILE "conf/large.conf"
+#define PARAMS_FILE "conf/dense.conf"
 #define READ_LEN (19 + 16)
 #define N_PARAMS 10
+
+/*
+ * Minimo rapporto possibile tra il numero di celle totale
+ * ed il numero di celle inaccessibili.
+ * Poichè il numero di holes generabile dipende anche dalle proporzioni
+ * della griglia, il valore corrente è una precauzione e garantisce il
+ * funzionamento per ogni configurazione rispettante il vincolo
+ * GRID_SIZE / SO_HOLES >= SIZE_HOLES_RATIO.
+ */
+#define SIZE_HOLES_RATIO 9
 
 /* Macro per la generazione dei processi figli */
 
