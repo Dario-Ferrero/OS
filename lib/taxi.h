@@ -9,9 +9,9 @@
  */
 #define MANH_DIST(from, dest) (ABS(GET_X(dest) - GET_X(from)) + ABS(GET_Y(dest) - GET_Y(from)))
 #define ABS(n) (n < 0 ? -(n) : n)
-#define SEMTIMEDOP(id, num, op, flg, tout)  sops.sem_num = num;		\
-                                            sops.sem_op = op;		\
-                                            sops.sem_flg = flg;		\
+#define SEMTIMEDOP(id, num, op, flg, tout)  sops.sem_num = num;   \
+                                            sops.sem_op = op;     \
+                                            sops.sem_flg = flg;   \
                                             semtimedop(id, &sops, 1, tout);
 
 /* Macro di rappresentazione delle direzioni per un taxi */
@@ -40,22 +40,22 @@
 /*
  * Assegna a next la posizione della cella adiacente a taxi_pos in direzione dir
  */
-#define GET_NEXT(next, dir) switch (dir) {				\
-                            case GO_UP:					\
-                                next = UP(taxi_pos);	\
-                                break;					\
-                            case GO_DOWN:				\
-                                next = DOWN(taxi_pos);	\
-                                break;					\
-                            case GO_LEFT:				\
-                                next = LEFT(taxi_pos);	\
-                                break;					\
-                            case GO_RIGHT:				\
-                                next = RIGHT(taxi_pos);	\
-                                break;					\
-                            default:					\
-                                next = -1;				\
-                                break;					\
+#define GET_NEXT(next, dir) switch (dir) {              \
+                            case GO_UP:                 \
+                                next = UP(taxi_pos);    \
+                                break;                  \
+                            case GO_DOWN:               \
+                                next = DOWN(taxi_pos);  \
+                                break;                  \
+                            case GO_LEFT:               \
+                                next = LEFT(taxi_pos);  \
+                                break;                  \
+                            case GO_RIGHT:              \
+                                next = RIGHT(taxi_pos); \
+                                break;                  \
+                            default:                    \
+                                next = -1;              \
+                                break;                  \
                             }
 
 /* 

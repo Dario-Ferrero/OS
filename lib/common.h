@@ -47,7 +47,7 @@ typedef struct _SourceStats {
 } SourceStats;
 
 typedef struct _Request {
-    long mtype; 	/* src_cell + 1 */
+    long mtype;     /* src_cell + 1 */
     int dest_cell;
 } Request;
 
@@ -83,13 +83,13 @@ typedef struct _Request {
  * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle.
  */
 
-#define NSEMS  	  (GRID_SIZE + 3)
+#define NSEMS        (GRID_SIZE + 3)
 #define SEM_START  GRID_SIZE
 #define SEM_KIDS  (GRID_SIZE + 1)
 #define SEM_PRINT (GRID_SIZE + 2)
-#define SEMOP(id, num, op, flg)		sops.sem_num = num;		\
-                                    sops.sem_op = op;		\
-                                    sops.sem_flg = flg;		\
+#define SEMOP(id, num, op, flg)     sops.sem_num = num;    \
+                                    sops.sem_op = op;      \
+                                    sops.sem_flg = flg;    \
                                     semop(id, &sops, 1);
 
 /*
@@ -98,12 +98,12 @@ typedef struct _Request {
  * TEST_ERROR presa dagli esempi di laboratorio
  */
 
-#define TEST_ERROR    if (errno) {fprintf(stderr,			\
+#define TEST_ERROR    if (errno) {fprintf(stderr,         \
                       "%s:%d: PID=%5d: Errore %d (%s)\n", \
-                      __FILE__,			\
-                      __LINE__,			\
-                      getpid(),			\
-                      errno,			\
+                      __FILE__,            \
+                      __LINE__,            \
+                      getpid(),            \
+                      errno,               \
                       strerror(errno));}
 
 #define PRINT_INT(n) fprintf(stderr, "%s:%i: %s = %i\n", __FILE__, __LINE__, #n, n)
@@ -116,8 +116,8 @@ typedef struct _Request {
 
 #define TRUE  1
 #define FALSE 0
-#define SWAP(a, b, tmp)  tmp = a; 	\
-                         a = b;	  	\
+#define SWAP(a, b, tmp)  tmp = a;   \
+                         a = b;     \
                          b = tmp;
 
 /*
