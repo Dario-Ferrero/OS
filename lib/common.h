@@ -83,7 +83,7 @@ typedef struct _Request {
  * Valori in [0, GRID_SIZE-1] usati per gestire l'accesso alle celle.
  */
 
-#define NSEMS        (GRID_SIZE + 3)
+#define NSEMS     (GRID_SIZE + 3)
 #define SEM_START  GRID_SIZE
 #define SEM_KIDS  (GRID_SIZE + 1)
 #define SEM_PRINT (GRID_SIZE + 2)

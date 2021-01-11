@@ -1,10 +1,25 @@
 #ifndef __MASTER_H__
 #define __MASTER_H__
 
+/* Parametri di configurazione, letti a run-time */
+
+int SO_HOLES;
+int SO_TOP_CELLS;
+int SO_SOURCES;
+int SO_CAP_MIN;
+int SO_CAP_MAX;
+int SO_TAXI;
+int SO_TIMENSEC_MIN;
+int SO_TIMENSEC_MAX;
+int SO_TIMEOUT;
+int SO_DURATION;
+
 /* Macro per la lettura dei parametri di configurazione */
 
-#define PARAMS_FILE "conf/dense.conf"
-#define READ_LEN (19 + 16)
+#define PARAMS_FILE "conf/test.conf"
+#define MAX_PARAM_NAMELEN 19
+#define MAX_PARAM_DIGITS 16
+#define READ_LEN (MAX_PARAM_NAMELEN + MAX_PARAM_DIGITS)
 #define N_PARAMS 10
 
 /*
@@ -29,19 +44,6 @@
  * Passato come argomento ad ogni processo sorgente creato.
  */
 #define REQS_RATE (SO_TAXI / SO_SOURCES)
-
-/* Parametri di configurazione, letti a run-time */
-
-int SO_HOLES;
-int SO_TOP_CELLS;
-int SO_SOURCES;
-int SO_CAP_MIN;
-int SO_CAP_MAX;
-int SO_TAXI;
-int SO_TIMENSEC_MIN;
-int SO_TIMENSEC_MAX;
-int SO_TIMEOUT;
-int SO_DURATION;
 
 
 /*

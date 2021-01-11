@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
     /* Accedere all'array di semafori per sincronizzarsi col master */
 
-    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
+    if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         free(sources_pos);
         exit(EXIT_FAILURE);

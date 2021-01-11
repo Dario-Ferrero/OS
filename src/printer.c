@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 
     /* Accedere all'array di semafori */
 
-    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
+    if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }

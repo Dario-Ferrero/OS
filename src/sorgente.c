@@ -27,14 +27,14 @@ int main(int argc, char *argv[])
 
     /* Accedere all'array di semafori per la sincronizzazione col master. */
 
-    if ((sem_id = semget(getppid(), NSEMS, 0666)) == -1) {
+    if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
 
     /* Accedere alla mia coda di messaggi per le richieste */
 
-    if ((msq_id = msgget(IPC_PRIVATE, 0666)) == -1) {
+    if ((msq_id = msgget(IPC_PRIVATE, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }

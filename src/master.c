@@ -191,7 +191,7 @@ void init_city_grid()
 
     if ((shm_id = shmget(getpid(),
                   GRID_SIZE * sizeof(*city_grid),
-                  IPC_CREAT | IPC_EXCL | 0666)) == -1) {
+                  IPC_CREAT | IPC_EXCL | 0600)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
@@ -271,7 +271,7 @@ void init_sems()
 {
     int i;
 
-    if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0666)) == -1) {
+    if ((sem_id = semget(getpid(), NSEMS, IPC_CREAT | IPC_EXCL | 0600)) == -1) {
         TEST_ERROR;
         fprintf(stderr, "Oggetto IPC (array di semafori) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
@@ -564,7 +564,9 @@ void term_kids(pid_t *kids, int nkids)
     for (i = 0; i < nkids; i++) {
         kill(kids[i], SIGTERM);
     }
-    while (wait(NULL) != -1);
+    for (i = 0; i < nkids; i++) {
+        waitpid(kids[i], NULL, 0);
+    }
     free(kids);
     fprintf(stderr, "Processi figli terminati ed array di PID deallocato.\n");
 }
