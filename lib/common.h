@@ -23,9 +23,9 @@
 
 typedef struct _Cell {
     long cross_time;
-	int msq_id;
+    int msq_id;
     sig_atomic_t cross_n;
-	u_int8_t capacity;
+    u_int8_t capacity;
     u_int8_t flags;
 } Cell;
 
@@ -35,15 +35,15 @@ typedef struct _Cell {
 
 typedef struct _TaxiStats {
     long mtype;
-	unsigned long route_time;
+    unsigned long route_time;
     pid_t taxi_pid;
     int16_t cells_crossed;
     int16_t reqs_compl;
 } TaxiStats;
 
 typedef struct _SourceStats {
-	long mtype;
-	u_int64_t reqs_unpicked;
+    long mtype;
+    u_int64_t reqs_unpicked;
 } SourceStats;
 
 typedef struct _Request {
@@ -88,9 +88,9 @@ typedef struct _Request {
 #define SEM_KIDS  (GRID_SIZE + 1)
 #define SEM_PRINT (GRID_SIZE + 2)
 #define SEMOP(id, num, op, flg)		sops.sem_num = num;		\
-									sops.sem_op = op;		\
-									sops.sem_flg = flg;		\
-									semop(id, &sops, 1);
+                                    sops.sem_op = op;		\
+                                    sops.sem_flg = flg;		\
+                                    semop(id, &sops, 1);
 
 /*
  * Macro per debugging.
@@ -99,12 +99,12 @@ typedef struct _Request {
  */
 
 #define TEST_ERROR    if (errno) {fprintf(stderr,			\
-					  "%s:%d: PID=%5d: Errore %d (%s)\n", \
-					  __FILE__,			\
-					  __LINE__,			\
-					  getpid(),			\
-					  errno,			\
-					  strerror(errno));}
+                      "%s:%d: PID=%5d: Errore %d (%s)\n", \
+                      __FILE__,			\
+                      __LINE__,			\
+                      getpid(),			\
+                      errno,			\
+                      strerror(errno));}
 
 #define PRINT_INT(n) fprintf(stderr, "%s:%i: %s = %i\n", __FILE__, __LINE__, #n, n)
 #define PRINT_LONG_I(n) fprintf(stderr, "%s:%i: %s = %li\n", __FILE__, __LINE__, #n, n)
@@ -117,8 +117,8 @@ typedef struct _Request {
 #define TRUE  1
 #define FALSE 0
 #define SWAP(a, b, tmp)  tmp = a; 	\
-						 a = b;	  	\
-						 b = tmp;
+                         a = b;	  	\
+                         b = tmp;
 
 /*
  * Genera un intero casualmente incluso tra a e b
