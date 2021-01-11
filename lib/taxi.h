@@ -84,7 +84,7 @@ void drive_straight(int goal);
  * muovendo il taxi di una cella in direzione perpendicolare a dir
  * ed in seguito di una cella in direzione dir.
  */
-void circle_hole(int8_t dir, int goal);
+void circle_hole(int8_t dir);
 
 /*
  * Sposta il taxi dalla cella taxi_pos alla cella adiacente dest situata

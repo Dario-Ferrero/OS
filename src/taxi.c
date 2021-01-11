@@ -6,12 +6,12 @@ Cell *city_grid;
 struct sembuf sops;
 TaxiStats stats;
 struct itimerval timer_init, time_left, timer_block;
+sigset_t sig_mask;
 
 int main(int argc, char *argv[])
 {
     int i, cnt, dest_pos, exc_pos, shm_id, SO_SOURCES;
     struct sigaction sa;
-    sigset_t sig_mask;
     Request req;
 
     /* Inizializzare le variabili */
@@ -99,7 +99,9 @@ int main(int argc, char *argv[])
         } else if (errno == EIDRM) {
             raise(SIGALRM);
         }
+        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
         stats.mtype = REQ_ABRT_MTYPE;
+        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
 
         /* Spostarsi sulla cella di destinazione */
 
@@ -107,8 +109,10 @@ int main(int argc, char *argv[])
             drive_diagonal(req.dest_cell);
             drive_straight(req.dest_cell);
         }
+        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
         stats.reqs_compl++;
         stats.mtype = REQ_SUCC_MTYPE;
+        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
     }
 }
 
@@ -146,18 +150,20 @@ void drive_diagonal(int goal)
         GET_NEXT(next, dir);
         switch (dir) {
         case GO_UP:
-            valid = !IS_BORDER(next) && GET_Y(goal) < GET_Y(taxi_pos) && !IS_HOLE(city_grid[next]);
+            valid = GET_Y(goal) < GET_Y(taxi_pos);
             break;
         case GO_DOWN:
-            valid = !IS_BORDER(next) && GET_Y(goal) > GET_Y(taxi_pos) && !IS_HOLE(city_grid[next]);
+            valid = GET_Y(goal) > GET_Y(taxi_pos);
             break;
         case GO_LEFT:
-            valid = !IS_BORDER(next) && GET_X(goal) < GET_X(taxi_pos) && !IS_HOLE(city_grid[next]);
+            valid = GET_X(goal) < GET_X(taxi_pos);
             break;
         case GO_RIGHT:
-            valid = !IS_BORDER(next) && GET_X(goal) > GET_X(taxi_pos) && !IS_HOLE(city_grid[next]);
+            valid = GET_X(goal) > GET_X(taxi_pos);
             break;
         }
+
+        valid = valid && !IS_BORDER(next) && !IS_HOLE(city_grid[next]);
 
         if (valid) {
             access_cell(next, dir);
@@ -180,14 +186,14 @@ void drive_straight(int goal)
         if (!IS_HOLE(city_grid[next])) {
             access_cell(next, new_dir);
         } else {
-            circle_hole(new_dir, goal);
+            circle_hole(new_dir);
             return;
         }
     }   
 }
 
 
-void circle_hole(int8_t dir, int goal)
+void circle_hole(int8_t dir)
 {
     int8_t old_dir;
     int next;
@@ -232,10 +238,11 @@ void access_cell(int dest, int8_t dir)
         nanosleep(&cross_time, NULL);
 
         setitimer(ITIMER_REAL, &timer_init, NULL);
-
+        sigprocmask(SIG_BLOCK, &sig_mask, NULL);
         stats.route_time += cross_time.tv_nsec;
         stats.cells_crossed++;
         city_grid[dest].cross_n++;
+        sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
     } else {
         setitimer(ITIMER_REAL, &timer_block, NULL);
         terminate();
