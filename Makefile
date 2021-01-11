@@ -1,25 +1,26 @@
 CFLAGS = -pedantic -std=c89
+DEPS = lib/common.h Makefile
 
-all : master sorgente taxi printer gridprint.o
+all : out/gridprint.o out/printer out/master out/sorgente out/taxi 
 
 run : all
 	./out/master
 
-master : src/master.c gridprint.o lib/master.h lib/common.h Makefile
+out/master : src/master.c out/gridprint.o lib/master.h $(DEPS)
 	$(CC) $(CFLAGS) src/master.c out/gridprint.o -o out/master
 
-sorgente : src/sorgente.c lib/sorgente.h lib/common.h Makefile
+out/sorgente : src/sorgente.c lib/sorgente.h $(DEPS)
 	$(CC) $(CFLAGS) src/sorgente.c -o out/sorgente
 
-taxi : src/taxi.c lib/taxi.h lib/common.h Makefile
+out/taxi : src/taxi.c lib/taxi.h $(DEPS)
 	$(CC) $(CFLAGS) src/taxi.c -o out/taxi
 
-printer : src/printer.c out/gridprint.o lib/printer.h lib/common.h Makefile
+out/printer : src/printer.c out/gridprint.o lib/printer.h $(DEPS)
 	$(CC) $(CFLAGS) src/printer.c out/gridprint.o -o out/printer
 
-gridprint.o : src/gridprint.c lib/gridprint.h lib/common.h Makefile
-	if [ ! -d "./out/" ]; then mkdir out/; fi
+out/gridprint.o : src/gridprint.c lib/gridprint.h $(DEPS)
+	if [ ! -d "out/" ]; then mkdir out/; fi
 	$(CC) $(CFLAGS) -c src/gridprint.c -o out/gridprint.o
 
 clear :
-	rm -f out/*
+	rm -rf out/
