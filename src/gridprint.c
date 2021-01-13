@@ -45,7 +45,7 @@ void print_grid_state(int sem_id, Cell *city_grid)
                      semctl(sem_id, INDEX(x, y), GETVAL);
             if (IS_HOLE(city_grid[INDEX(x, y)])) {
                 printf(ANSI_RED"H "ANSI_RESET);
-            } else if (n_taxi) {
+            } else if (n_taxi > 0) {
                 if (IS_SOURCE(city_grid[INDEX(x, y)])) {
                     printf(ANSI_YELLOW"%d "ANSI_RESET, n_taxi);
                 } else {
