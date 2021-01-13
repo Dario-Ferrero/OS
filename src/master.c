@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
     int i;
     struct sigaction sa;
 
+
     dprintf(STDOUT_FILENO, "Lettura parametri... ");
     read_params();
     dprintf(STDOUT_FILENO, "parametri letti.\n");
@@ -33,13 +34,11 @@ int main(int argc, char *argv[])
     dprintf(STDOUT_FILENO, "Inizializzazione griglia... \n\n");
     init_city_grid();
     dprintf(STDOUT_FILENO, "Griglia inizializzata\n");
-
     print_initial_grid(city_grid);
 
     dprintf(STDOUT_FILENO, "Assegnamento celle sorgente... ");
     assign_sources();
     dprintf(STDOUT_FILENO, "celle sorgente assegnate.\n");
-
     print_initial_grid(city_grid);
 
     dprintf(STDOUT_FILENO, "Inizializzazione semafori... ");
@@ -58,12 +57,8 @@ int main(int argc, char *argv[])
 
     dprintf(STDOUT_FILENO, "Creazione processi sorgente... ");
     create_sources();
-
-    /* Aspetto che le sorgenti abbiano finito di inizializzarsi */
-
     SEMOP(sem_id, SEM_KIDS, -SO_SOURCES, 0);
     TEST_ERROR;
-
     dprintf(STDOUT_FILENO, "processi sorgente creati.\n");
     dprintf(STDOUT_FILENO, "Master sbloccato, le sorgenti si sono inizializzate.\n");
 
@@ -72,24 +67,17 @@ int main(int argc, char *argv[])
     taxis_size = SO_TAXI;
     taxis = (int *)calloc(taxis_size, sizeof(*taxis));
     create_taxis(taxis_size);
-
-    /* Aspetto che i taxi abbiano finito di inizializzarsi */
-
     SEMOP(sem_id, SEM_KIDS, -SO_TAXI, 0);
     TEST_ERROR;
-
     dprintf(STDOUT_FILENO, "processi taxi creati.\n");
     dprintf(STDOUT_FILENO, "Master sbloccato, i taxi si sono inizializzati.\n\n");
 
     dprintf(STDOUT_FILENO, "Creazione processo printer... ");
     create_printer();
-
-    /* Aspetto che il printer abbia finito di inizializzarsi */
-
     SEMOP(sem_id, SEM_KIDS, -1, 0);
     TEST_ERROR;
-
     dprintf(STDOUT_FILENO, "Processo printer creato.\n");
+
 
     dprintf(STDOUT_FILENO, "Processi figli creati, può partire la simulazione!\n\n");
     dprintf(STDOUT_FILENO, "I Process ID delle sorgenti sono osservabili:\n");
@@ -102,8 +90,6 @@ int main(int argc, char *argv[])
 
     SEMOP(sem_id, SEM_START, -1, 0);
     TEST_ERROR;
-
-    /* Ciclo di simulazione */
 
     alarm(SO_DURATION);
     collect_taxi_stats(1);
@@ -125,8 +111,8 @@ void read_params()
     params = calloc(N_PARAMS, sizeof(*params));
     cnt = 0;
     while (fgets(buf, READ_LEN, in) != NULL) {
-        strtok(buf, "=\n");
-        token = strtok(NULL, "=\n");
+        strtok(buf, SEPARATORS);
+        token = strtok(NULL, SEPARATORS);
         params[cnt++] = atoi(token);
     }
 
@@ -196,7 +182,6 @@ void init_city_grid()
         fprintf(stderr, "Oggetto IPC (memoria condivisa) già esistente con chiave %d\n", getpid());
         exit(EXIT_FAILURE);
     }
-
     city_grid = (Cell *)shmat(shm_id, NULL, 0);
     TEST_ERROR;
 
@@ -538,7 +523,7 @@ void handle_signal(int signum)
 {
     switch (signum) {
     case SIGTERM:
-    case SIGINT: /* Terminazione forzata */
+    case SIGINT:
         free(tstats);
         free(sources_pos);
         kill(printer, SIGTERM);

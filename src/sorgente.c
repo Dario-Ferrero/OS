@@ -15,8 +15,6 @@ int main(int argc, char *argv[])
     source_pos = atoi(argv[1]);
     reqs_rate = atoi(argv[2]);
 
-    /* Impostare il signal handler */
-
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sa.sa_flags = SA_RESTART;
@@ -25,21 +23,15 @@ int main(int argc, char *argv[])
     sigaction(SIGALRM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
 
-    /* Accedere all'array di semafori per la sincronizzazione col master. */
-
     if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
 
-    /* Accedere alla mia coda di messaggi per le richieste */
-
     if ((msq_id = msgget(IPC_PRIVATE, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
-
-    /* Scrivere l'id della coda nella sua cella, così che i taxi vi possano accedere */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -49,12 +41,8 @@ int main(int argc, char *argv[])
     TEST_ERROR;
     city_grid[source_pos].msq_id = msq_id;
 
-    /* Inviare reqs_rate richieste iniziali */
-
     srand(getpid() + time(NULL));
     create_requests(reqs_rate);
-
-    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -62,7 +50,6 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
-    /* Simulazione iniziata */
 
     while (1) {
         slp_time.tv_sec = BURST_INTERVAL;
@@ -81,13 +68,13 @@ void handle_signal(int signum)
 {
     switch (signum) {
     case SIGINT:
-    case SIGTERM: /* Terminazione forzata */
+    case SIGTERM:
         terminate();
         break;
-    case SIGUSR1: /* Richiesta da terminale */
+    case SIGUSR1:
         create_requests(1);
         break;
-    case SIGALRM: /* Fine simulazione */
+    case SIGALRM:
         send_stats();
         terminate();
         break;

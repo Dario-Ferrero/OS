@@ -14,7 +14,6 @@ int main(int argc, char *argv[])
     struct sigaction sa;
     Request req;
 
-    /* Inizializzare le variabili */
 
     taxi_pos = atoi(argv[1]);
     SO_SOURCES = atoi(argv[2]);
@@ -31,8 +30,6 @@ int main(int argc, char *argv[])
     exc_pos = -1;
     srand(getpid() + time(NULL));
 
-    /* Impostare il signal handler, sbloccare SIGALRM (per i taxi di seconda generazione) */
-
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
     sigaction(SIGINT, &sa, NULL);
@@ -41,8 +38,6 @@ int main(int argc, char *argv[])
     sigemptyset(&sig_mask);
     sigaddset(&sig_mask, SIGALRM);
     sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
-
-    /* Accedere alla griglia, e per ogni cella sorgente salvarne la posizione in un array */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -57,15 +52,11 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* Accedere all'array di semafori per sincronizzarsi col master */
-
     if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         free(sources_pos);
         exit(EXIT_FAILURE);
     }
-
-    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
@@ -73,24 +64,17 @@ int main(int argc, char *argv[])
     SEMOP(sem_id, SEM_START, 0, 0);
     TEST_ERROR;
 
-    /* Simulazione iniziata */
 
     setitimer(ITIMER_REAL, &timer_init, NULL);
 
     while (1) {
-        
-        /* Trovare la sorgente più vicina */
 
         dest_pos = closest_source(SO_SOURCES, exc_pos);
-
-        /* Spostarsi su quella cella */
 
         while (taxi_pos != dest_pos) {
             drive_diagonal(dest_pos);
             drive_straight(dest_pos);
         }
-
-        /* Se la coda non è vuota : prelevare una richiesta. Altrimenti cercare di nuovo */
 
         msgrcv(city_grid[taxi_pos].msq_id, &req, MSG_LEN(req), 0, IPC_NOWAIT);
         if (errno == ENOMSG) {
@@ -103,12 +87,11 @@ int main(int argc, char *argv[])
         stats.mtype = REQ_ABRT_MTYPE;
         sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
 
-        /* Spostarsi sulla cella di destinazione */
-
         while (taxi_pos != req.dest_cell) {
             drive_diagonal(req.dest_cell);
             drive_straight(req.dest_cell);
         }
+
         sigprocmask(SIG_BLOCK, &sig_mask, NULL);
         stats.reqs_compl++;
         stats.mtype = REQ_SUCC_MTYPE;
@@ -254,12 +237,12 @@ void handle_signal(int signum)
 {
     switch (signum) {
     case SIGINT:
-    case SIGTERM: /* Terminazione forzata */
+    case SIGTERM:
         shmdt(city_grid);
         free(sources_pos);
         exit(EXIT_SUCCESS);
         break;
-    case SIGALRM: /* Fine simulazione */
+    case SIGALRM:
         terminate();
     }
 }

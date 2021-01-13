@@ -17,6 +17,7 @@ int SO_DURATION;
 /* Macro per la lettura dei parametri di configurazione */
 
 #define PARAMS_FILE "conf/test.conf"
+#define SEPARATORS "=\n"
 #define MAX_PARAM_NAMELEN 19
 #define MAX_PARAM_DIGITS 16
 #define READ_LEN (MAX_PARAM_NAMELEN + MAX_PARAM_DIGITS)

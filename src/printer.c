@@ -10,7 +10,6 @@ int main(int argc, char *argv[])
     struct sigaction sa;
     struct sembuf sops;
 
-    /* Gestire maschere e segnali */
 
     bzero(&sa, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -19,14 +18,10 @@ int main(int argc, char *argv[])
 
     setvbuf(stdout, NULL, _IOFBF, 0);
 
-    /* Accedere all'array di semafori */
-
     if ((sem_id = semget(getppid(), NSEMS, 0600)) == -1) {
         TEST_ERROR;
         exit(EXIT_FAILURE);
     }
-
-    /* Accedere alla griglia di simulazione */
 
     if ((shm_id = shmget(getppid(), GRID_SIZE * sizeof(*city_grid), 0600)) == -1) {
         TEST_ERROR;
@@ -36,8 +31,6 @@ int main(int argc, char *argv[])
     TEST_ERROR;
 
     print_grid_state(sem_id, city_grid);
-
-    /* Il processo è pronto : incrementare SEM_KIDS e wait for zero su SEM_START */
 
     SEMOP(sem_id, SEM_KIDS, 1, 0);
     TEST_ERROR;
